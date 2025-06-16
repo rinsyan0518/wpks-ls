@@ -9,11 +9,22 @@ import (
 	"strings"
 
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter"
+	portout "github.com/rinsyan0518/wpks-ls/internal/pkg/port/out"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/usecase"
 )
 
 // LSPServer represents a minimal LSP server.
-type LSPServer struct{}
+type LSPServer struct {
+	PackwerkRunner       portout.PackwerkRunner
+	DiagnosticsPublisher portout.DiagnosticsPublisher
+}
+
+func NewLSPServer(runner portout.PackwerkRunner, publisher portout.DiagnosticsPublisher) *LSPServer {
+	return &LSPServer{
+		PackwerkRunner:       runner,
+		DiagnosticsPublisher: publisher,
+	}
+}
 
 // Start runs the LSP server loop.
 func (s *LSPServer) Start() {
@@ -78,12 +89,12 @@ func (s *LSPServer) Start() {
 			if td, ok := params["textDocument"].(map[string]interface{}); ok {
 				uri, _ := td["uri"].(string)
 				fmt.Fprintf(os.Stderr, "%s received for: %s\n", method, uri)
-				output, err := adapter.RunPackwerkCheck(uri)
+				output, err := s.PackwerkRunner.RunCheck(uri)
 				violations := adapter.ParsePackwerkOutput(output)
 				diagnostics := usecase.GenerateDiagnostics(violations, err)
 				b, _ := json.Marshal(diagnostics)
 				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
-				adapter.PublishDiagnostics(uri, diagnostics)
+				s.DiagnosticsPublisher.Publish(uri, diagnostics)
 			}
 			continue
 		}

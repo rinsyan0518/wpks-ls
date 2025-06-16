@@ -1,8 +1,13 @@
 package main
 
-import "github.com/rinsyan0518/wpks-ls/internal/app"
+import (
+	"github.com/rinsyan0518/wpks-ls/internal/app"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter"
+)
 
 func main() {
-	server := &app.LSPServer{}
+	runner := adapter.PackwerkRunnerImpl{}
+	publisher := adapter.DiagnosticsPublisherImpl{}
+	server := app.NewLSPServer(runner, publisher)
 	server.Start()
 }
