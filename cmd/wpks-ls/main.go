@@ -1,8 +1,8 @@
 package main
 
-import "fmt"
+import "github.com/rinsyan0518/wpks-ls/internal/app"
 
 func main() {
-	fmt.Println("Starting wpks-ls (Go implementation)...")
-	// TODO: Initialize and start the LSP server
+	server := &app.LSPServer{}
+	server.Start()
 }
