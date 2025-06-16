@@ -78,5 +78,14 @@ func (s *LSPServer) Start() {
 			}
 			continue
 		}
+		// Handle textDocument/didChange
+		if method, ok := msg["method"].(string); ok && method == "textDocument/didChange" {
+			params, _ := msg["params"].(map[string]interface{})
+			if td, ok := params["textDocument"].(map[string]interface{}); ok {
+				uri, _ := td["uri"].(string)
+				fmt.Fprintf(os.Stderr, "didChange received for: %s\n", uri)
+			}
+			continue
+		}
 	}
 }
