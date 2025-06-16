@@ -77,9 +77,6 @@ func (s *LSPServer) Start() {
 				fmt.Fprintf(os.Stderr, "didOpen received for: %s\n", uri)
 				// Run Packwerk diagnostics and print as JSON
 				output, err := RunPackwerkCheck(uri)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Packwerk error: %v\n", err)
-				}
 				violations := ParsePackwerkOutput(output)
 				diagnostics := make([]Diagnostic, 0, len(violations))
 				for _, v := range violations {
@@ -91,6 +88,17 @@ func (s *LSPServer) Start() {
 						Severity: SeverityError,
 						Source:   "packwerk",
 						Message:  v.Message,
+					})
+				}
+				if err != nil {
+					diagnostics = append(diagnostics, Diagnostic{
+						Range: Range{
+							Start: Position{Line: 0, Character: 0},
+							End:   Position{Line: 0, Character: 0},
+						},
+						Severity: SeverityError,
+						Source:   "packwerk",
+						Message:  "Packwerk error: " + err.Error(),
 					})
 				}
 				b, _ := json.Marshal(diagnostics)
@@ -118,9 +126,6 @@ func (s *LSPServer) Start() {
 				fmt.Fprintf(os.Stderr, "didChange received for: %s\n", uri)
 				// Run Packwerk diagnostics and print as JSON
 				output, err := RunPackwerkCheck(uri)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Packwerk error: %v\n", err)
-				}
 				violations := ParsePackwerkOutput(output)
 				diagnostics := make([]Diagnostic, 0, len(violations))
 				for _, v := range violations {
@@ -132,6 +137,17 @@ func (s *LSPServer) Start() {
 						Severity: SeverityError,
 						Source:   "packwerk",
 						Message:  v.Message,
+					})
+				}
+				if err != nil {
+					diagnostics = append(diagnostics, Diagnostic{
+						Range: Range{
+							Start: Position{Line: 0, Character: 0},
+							End:   Position{Line: 0, Character: 0},
+						},
+						Severity: SeverityError,
+						Source:   "packwerk",
+						Message:  "Packwerk error: " + err.Error(),
 					})
 				}
 				b, _ := json.Marshal(diagnostics)
