@@ -67,6 +67,16 @@ func (s *LSPServer) Start() {
 			}
 			respBytes, _ := json.Marshal(resp)
 			fmt.Printf("Content-Length: %d\r\n\r\n%s", len(respBytes), respBytes)
+			continue
+		}
+		// Handle textDocument/didOpen
+		if method, ok := msg["method"].(string); ok && method == "textDocument/didOpen" {
+			params, _ := msg["params"].(map[string]interface{})
+			if td, ok := params["textDocument"].(map[string]interface{}); ok {
+				uri, _ := td["uri"].(string)
+				fmt.Fprintf(os.Stderr, "didOpen received for: %s\n", uri)
+			}
+			continue
 		}
 	}
 }
