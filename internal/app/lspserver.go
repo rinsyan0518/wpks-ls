@@ -78,43 +78,10 @@ func (s *LSPServer) Start() {
 				// Run Packwerk diagnostics and print as JSON
 				output, err := RunPackwerkCheck(uri)
 				violations := ParsePackwerkOutput(output)
-				diagnostics := make([]Diagnostic, 0, len(violations))
-				for _, v := range violations {
-					diagnostics = append(diagnostics, Diagnostic{
-						Range: Range{
-							Start: Position{Line: v.Line - 1, Character: v.Column - 1},
-							End:   Position{Line: v.Line - 1, Character: v.Column - 1},
-						},
-						Severity: SeverityError,
-						Source:   "packwerk",
-						Message:  v.Message,
-					})
-				}
-				if err != nil {
-					diagnostics = append(diagnostics, Diagnostic{
-						Range: Range{
-							Start: Position{Line: 0, Character: 0},
-							End:   Position{Line: 0, Character: 0},
-						},
-						Severity: SeverityError,
-						Source:   "packwerk",
-						Message:  "Packwerk error: " + err.Error(),
-					})
-				}
+				diagnostics := generateDiagnostics(violations, err)
 				b, _ := json.Marshal(diagnostics)
 				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
-
-				// Publish diagnostics to LSP client
-				publish := map[string]interface{}{
-					"jsonrpc": "2.0",
-					"method":  "textDocument/publishDiagnostics",
-					"params": map[string]interface{}{
-						"uri":         uri,
-						"diagnostics": diagnostics,
-					},
-				}
-				publishBytes, _ := json.Marshal(publish)
-				fmt.Printf("Content-Length: %d\r\n\r\n%s", len(publishBytes), publishBytes)
+				publishDiagnostics(uri, diagnostics)
 			}
 			continue
 		}
@@ -127,45 +94,54 @@ func (s *LSPServer) Start() {
 				// Run Packwerk diagnostics and print as JSON
 				output, err := RunPackwerkCheck(uri)
 				violations := ParsePackwerkOutput(output)
-				diagnostics := make([]Diagnostic, 0, len(violations))
-				for _, v := range violations {
-					diagnostics = append(diagnostics, Diagnostic{
-						Range: Range{
-							Start: Position{Line: v.Line - 1, Character: v.Column - 1},
-							End:   Position{Line: v.Line - 1, Character: v.Column - 1},
-						},
-						Severity: SeverityError,
-						Source:   "packwerk",
-						Message:  v.Message,
-					})
-				}
-				if err != nil {
-					diagnostics = append(diagnostics, Diagnostic{
-						Range: Range{
-							Start: Position{Line: 0, Character: 0},
-							End:   Position{Line: 0, Character: 0},
-						},
-						Severity: SeverityError,
-						Source:   "packwerk",
-						Message:  "Packwerk error: " + err.Error(),
-					})
-				}
+				diagnostics := generateDiagnostics(violations, err)
 				b, _ := json.Marshal(diagnostics)
 				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
-
-				// Publish diagnostics to LSP client
-				publish := map[string]interface{}{
-					"jsonrpc": "2.0",
-					"method":  "textDocument/publishDiagnostics",
-					"params": map[string]interface{}{
-						"uri":         uri,
-						"diagnostics": diagnostics,
-					},
-				}
-				publishBytes, _ := json.Marshal(publish)
-				fmt.Printf("Content-Length: %d\r\n\r\n%s", len(publishBytes), publishBytes)
+				publishDiagnostics(uri, diagnostics)
 			}
 			continue
 		}
 	}
+}
+
+// generateDiagnostics converts Packwerk violations and errors to LSP diagnostics.
+func generateDiagnostics(violations []Violation, err error) []Diagnostic {
+	diagnostics := make([]Diagnostic, 0, len(violations)+1)
+	for _, v := range violations {
+		diagnostics = append(diagnostics, Diagnostic{
+			Range: Range{
+				Start: Position{Line: v.Line - 1, Character: v.Column - 1},
+				End:   Position{Line: v.Line - 1, Character: v.Column - 1},
+			},
+			Severity: SeverityError,
+			Source:   "packwerk",
+			Message:  v.Message,
+		})
+	}
+	if err != nil {
+		diagnostics = append(diagnostics, Diagnostic{
+			Range: Range{
+				Start: Position{Line: 0, Character: 0},
+				End:   Position{Line: 0, Character: 0},
+			},
+			Severity: SeverityError,
+			Source:   "packwerk",
+			Message:  "Packwerk error: " + err.Error(),
+		})
+	}
+	return diagnostics
+}
+
+// publishDiagnostics sends diagnostics to the LSP client.
+func publishDiagnostics(uri string, diagnostics []Diagnostic) {
+	publish := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "textDocument/publishDiagnostics",
+		"params": map[string]interface{}{
+			"uri":         uri,
+			"diagnostics": diagnostics,
+		},
+	}
+	publishBytes, _ := json.Marshal(publish)
+	fmt.Printf("Content-Length: %d\r\n\r\n%s", len(publishBytes), publishBytes)
 }
