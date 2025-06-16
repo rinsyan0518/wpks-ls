@@ -95,6 +95,18 @@ func (s *LSPServer) Start() {
 				}
 				b, _ := json.Marshal(diagnostics)
 				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
+
+				// Publish diagnostics to LSP client
+				publish := map[string]interface{}{
+					"jsonrpc": "2.0",
+					"method":  "textDocument/publishDiagnostics",
+					"params": map[string]interface{}{
+						"uri":         uri,
+						"diagnostics": diagnostics,
+					},
+				}
+				publishBytes, _ := json.Marshal(publish)
+				fmt.Printf("Content-Length: %d\r\n\r\n%s", len(publishBytes), publishBytes)
 			}
 			continue
 		}
@@ -124,6 +136,18 @@ func (s *LSPServer) Start() {
 				}
 				b, _ := json.Marshal(diagnostics)
 				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
+
+				// Publish diagnostics to LSP client
+				publish := map[string]interface{}{
+					"jsonrpc": "2.0",
+					"method":  "textDocument/publishDiagnostics",
+					"params": map[string]interface{}{
+						"uri":         uri,
+						"diagnostics": diagnostics,
+					},
+				}
+				publishBytes, _ := json.Marshal(publish)
+				fmt.Printf("Content-Length: %d\r\n\r\n%s", len(publishBytes), publishBytes)
 			}
 			continue
 		}
