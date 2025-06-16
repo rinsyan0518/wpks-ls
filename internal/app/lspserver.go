@@ -75,6 +75,26 @@ func (s *LSPServer) Start() {
 			if td, ok := params["textDocument"].(map[string]interface{}); ok {
 				uri, _ := td["uri"].(string)
 				fmt.Fprintf(os.Stderr, "didOpen received for: %s\n", uri)
+				// Run Packwerk diagnostics and print as JSON
+				output, err := RunPackwerkCheck(uri)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Packwerk error: %v\n", err)
+				}
+				violations := ParsePackwerkOutput(output)
+				diagnostics := make([]Diagnostic, 0, len(violations))
+				for _, v := range violations {
+					diagnostics = append(diagnostics, Diagnostic{
+						Range: Range{
+							Start: Position{Line: v.Line - 1, Character: v.Column - 1},
+							End:   Position{Line: v.Line - 1, Character: v.Column - 1},
+						},
+						Severity: SeverityError,
+						Source:   "packwerk",
+						Message:  v.Message,
+					})
+				}
+				b, _ := json.Marshal(diagnostics)
+				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
 			}
 			continue
 		}
@@ -84,6 +104,26 @@ func (s *LSPServer) Start() {
 			if td, ok := params["textDocument"].(map[string]interface{}); ok {
 				uri, _ := td["uri"].(string)
 				fmt.Fprintf(os.Stderr, "didChange received for: %s\n", uri)
+				// Run Packwerk diagnostics and print as JSON
+				output, err := RunPackwerkCheck(uri)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Packwerk error: %v\n", err)
+				}
+				violations := ParsePackwerkOutput(output)
+				diagnostics := make([]Diagnostic, 0, len(violations))
+				for _, v := range violations {
+					diagnostics = append(diagnostics, Diagnostic{
+						Range: Range{
+							Start: Position{Line: v.Line - 1, Character: v.Column - 1},
+							End:   Position{Line: v.Line - 1, Character: v.Column - 1},
+						},
+						Severity: SeverityError,
+						Source:   "packwerk",
+						Message:  v.Message,
+					})
+				}
+				b, _ := json.Marshal(diagnostics)
+				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
 			}
 			continue
 		}
