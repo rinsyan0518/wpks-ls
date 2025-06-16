@@ -1,0 +1,13 @@
+version: '3'
+tasks:
+  build:
+    desc: Build the wpks-ls binary
+    cmds:
+      - go build -o bin/wpks-ls ./cmd/wpks-ls
+    sources:
+      - cmd/wpks-ls/**/*.go
+      - internal/**/*.go
+      - go.mod
+      - go.sum
+    generates:
+      - bin/wpks-ls
