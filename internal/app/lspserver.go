@@ -7,6 +7,9 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/usecase"
 )
 
 // LSPServer represents a minimal LSP server.
@@ -69,79 +72,20 @@ func (s *LSPServer) Start() {
 			fmt.Printf("Content-Length: %d\r\n\r\n%s", len(respBytes), respBytes)
 			continue
 		}
-		// Handle textDocument/didOpen
-		if method, ok := msg["method"].(string); ok && method == "textDocument/didOpen" {
+		// Handle textDocument/didOpen or textDocument/didChange
+		if method, ok := msg["method"].(string); ok && (method == "textDocument/didOpen" || method == "textDocument/didChange") {
 			params, _ := msg["params"].(map[string]interface{})
 			if td, ok := params["textDocument"].(map[string]interface{}); ok {
 				uri, _ := td["uri"].(string)
-				fmt.Fprintf(os.Stderr, "didOpen received for: %s\n", uri)
-				// Run Packwerk diagnostics and print as JSON
-				output, err := RunPackwerkCheck(uri)
-				violations := ParsePackwerkOutput(output)
-				diagnostics := generateDiagnostics(violations, err)
+				fmt.Fprintf(os.Stderr, "%s received for: %s\n", method, uri)
+				output, err := adapter.RunPackwerkCheck(uri)
+				violations := adapter.ParsePackwerkOutput(output)
+				diagnostics := usecase.GenerateDiagnostics(violations, err)
 				b, _ := json.Marshal(diagnostics)
 				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
-				publishDiagnostics(uri, diagnostics)
-			}
-			continue
-		}
-		// Handle textDocument/didChange
-		if method, ok := msg["method"].(string); ok && method == "textDocument/didChange" {
-			params, _ := msg["params"].(map[string]interface{})
-			if td, ok := params["textDocument"].(map[string]interface{}); ok {
-				uri, _ := td["uri"].(string)
-				fmt.Fprintf(os.Stderr, "didChange received for: %s\n", uri)
-				// Run Packwerk diagnostics and print as JSON
-				output, err := RunPackwerkCheck(uri)
-				violations := ParsePackwerkOutput(output)
-				diagnostics := generateDiagnostics(violations, err)
-				b, _ := json.Marshal(diagnostics)
-				fmt.Fprintf(os.Stderr, "diagnostics: %s\n", b)
-				publishDiagnostics(uri, diagnostics)
+				adapter.PublishDiagnostics(uri, diagnostics)
 			}
 			continue
 		}
 	}
-}
-
-// generateDiagnostics converts Packwerk violations and errors to LSP diagnostics.
-func generateDiagnostics(violations []Violation, err error) []Diagnostic {
-	diagnostics := make([]Diagnostic, 0, len(violations)+1)
-	for _, v := range violations {
-		diagnostics = append(diagnostics, Diagnostic{
-			Range: Range{
-				Start: Position{Line: v.Line - 1, Character: v.Column - 1},
-				End:   Position{Line: v.Line - 1, Character: v.Column - 1},
-			},
-			Severity: SeverityError,
-			Source:   "packwerk",
-			Message:  v.Message,
-		})
-	}
-	if err != nil {
-		diagnostics = append(diagnostics, Diagnostic{
-			Range: Range{
-				Start: Position{Line: 0, Character: 0},
-				End:   Position{Line: 0, Character: 0},
-			},
-			Severity: SeverityError,
-			Source:   "packwerk",
-			Message:  "Packwerk error: " + err.Error(),
-		})
-	}
-	return diagnostics
-}
-
-// publishDiagnostics sends diagnostics to the LSP client.
-func publishDiagnostics(uri string, diagnostics []Diagnostic) {
-	publish := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  "textDocument/publishDiagnostics",
-		"params": map[string]interface{}{
-			"uri":         uri,
-			"diagnostics": diagnostics,
-		},
-	}
-	publishBytes, _ := json.Marshal(publish)
-	fmt.Printf("Content-Length: %d\r\n\r\n%s", len(publishBytes), publishBytes)
 }
