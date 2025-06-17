@@ -24,6 +24,7 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 func (s *Server) Start() {
 	handler := protocol.Handler{
 		Initialize:            s.onInitialize,
+		Initialized:           s.onInitialized,
 		TextDocumentDidOpen:   s.onDidOpen,
 		TextDocumentDidChange: s.onDidChange,
 	}
@@ -45,6 +46,10 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 			},
 		},
 	}, nil
+}
+
+func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
+	return nil
 }
 
 func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {

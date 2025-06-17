@@ -12,5 +12,5 @@ func NewConfiguration(rootUri string, rootPath string) *Configuration {
 }
 
 func (c *Configuration) StripRootUri(uri string) string {
-	return strings.TrimPrefix(uri, c.RootUri)
+	return strings.TrimPrefix(uri, c.RootUri+"/")
 }

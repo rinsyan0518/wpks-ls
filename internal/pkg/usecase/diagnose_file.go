@@ -21,7 +21,14 @@ func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
 		return nil, err
 	}
 
-	checkResult, err := d.packwerkRunner.RunCheck(configuration.StripRootUri(uri))
+	checkResult, err := d.packwerkRunner.RunCheck(
+		configuration.RootPath,
+		configuration.StripRootUri(uri),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	violations := checkResult.Parse()
 	diagnostics := make([]domain.Diagnostic, 0, len(violations)+1)
 	for _, v := range violations {
@@ -35,18 +42,8 @@ func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
 			Message:  v.Message,
 		})
 	}
-	if err != nil {
-		diagnostics = append(diagnostics, domain.Diagnostic{
-			Range: domain.Range{
-				Start: domain.Position{Line: 0, Character: 0},
-				End:   domain.Position{Line: 0, Character: 0},
-			},
-			Severity: domain.SeverityError,
-			Source:   "packwerk",
-			Message:  "Packwerk error: " + err.Error(),
-		})
-	}
-	return diagnostics, err
+
+	return diagnostics, nil
 }
 
 var _ in.DiagnoseFile = (*DiagnoseFile)(nil)
