@@ -7,15 +7,21 @@ import (
 )
 
 type DiagnoseFile struct {
-	packwerkRunner out.PackwerkRunner
+	configurationRepository out.ConfigurationRepository
+	packwerkRunner          out.PackwerkRunner
 }
 
-func NewDiagnoseFile(packwerkRunner out.PackwerkRunner) *DiagnoseFile {
-	return &DiagnoseFile{packwerkRunner: packwerkRunner}
+func NewDiagnoseFile(configurationRepository out.ConfigurationRepository, packwerkRunner out.PackwerkRunner) *DiagnoseFile {
+	return &DiagnoseFile{configurationRepository: configurationRepository, packwerkRunner: packwerkRunner}
 }
 
 func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
-	checkResult, err := d.packwerkRunner.RunCheck(uri)
+	configuration, err := d.configurationRepository.GetConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	checkResult, err := d.packwerkRunner.RunCheck(configuration.StripRootUri(uri))
 	violations := checkResult.Parse()
 	diagnostics := make([]domain.Diagnostic, 0, len(violations)+1)
 	for _, v := range violations {

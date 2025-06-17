@@ -1,7 +1,7 @@
 package lsp
 
 import (
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/usecase"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/in"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	"github.com/tliron/glsp/server"
@@ -9,12 +9,14 @@ import (
 
 // Server represents a minimal LSP server.
 type Server struct {
-	DiagnoseFile *usecase.DiagnoseFile
+	diagnoseFile in.DiagnoseFile
+	configure    in.Configure
 }
 
-func NewServer(diagnoseFile *usecase.DiagnoseFile) *Server {
+func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 	return &Server{
-		DiagnoseFile: diagnoseFile,
+		diagnoseFile: diagnoseFile,
+		configure:    configure,
 	}
 }
 
@@ -33,6 +35,8 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 	openClose := true
 	change := protocol.TextDocumentSyncKindIncremental
 
+	s.configure.Configure(*params.RootURI, *params.RootPath)
+
 	return protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			TextDocumentSync: &protocol.TextDocumentSyncOptions{
@@ -45,7 +49,7 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 
 func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 	uri := params.TextDocument.URI
-	diagnostics, err := s.DiagnoseFile.Diagnose(string(uri))
+	diagnostics, err := s.diagnoseFile.Diagnose(string(uri))
 	if err != nil {
 		return err
 	}
@@ -75,7 +79,7 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 func (s *Server) onDidChange(ctx *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
 	uri := params.TextDocument.URI
 
-	diagnostics, err := s.DiagnoseFile.Diagnose(string(uri))
+	diagnostics, err := s.diagnoseFile.Diagnose(string(uri))
 	if err != nil {
 		return err
 	}
