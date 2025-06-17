@@ -1,13 +1,13 @@
 package domain
 
 type Position struct {
-	Line      int `json:"line"`
-	Character int `json:"character"`
+	Line      uint32
+	Character uint32
 }
 
 type Range struct {
-	Start Position `json:"start"`
-	End   Position `json:"end"`
+	Start Position
+	End   Position
 }
 
 const (
@@ -18,8 +18,8 @@ const (
 )
 
 type Diagnostic struct {
-	Range    Range  `json:"range"`
-	Severity int    `json:"severity"`
-	Source   string `json:"source"`
-	Message  string `json:"message"`
+	Range    Range
+	Severity int32
+	Source   string
+	Message  string
 }

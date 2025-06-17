@@ -1,8 +1,22 @@
 package usecase
 
-import "github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
+import (
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/in"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/out"
+)
 
-func GenerateDiagnostics(violations []domain.Violation, err error) []domain.Diagnostic {
+type DiagnoseFile struct {
+	packwerkRunner out.PackwerkRunner
+}
+
+func NewDiagnoseFile(packwerkRunner out.PackwerkRunner) *DiagnoseFile {
+	return &DiagnoseFile{packwerkRunner: packwerkRunner}
+}
+
+func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
+	checkResult, err := d.packwerkRunner.RunCheck(uri)
+	violations := checkResult.Parse()
 	diagnostics := make([]domain.Diagnostic, 0, len(violations)+1)
 	for _, v := range violations {
 		diagnostics = append(diagnostics, domain.Diagnostic{
@@ -26,5 +40,7 @@ func GenerateDiagnostics(violations []domain.Violation, err error) []domain.Diag
 			Message:  "Packwerk error: " + err.Error(),
 		})
 	}
-	return diagnostics
+	return diagnostics, err
 }
+
+var _ in.DiagnoseFile = (*DiagnoseFile)(nil)

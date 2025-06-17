@@ -2,7 +2,7 @@ package domain
 
 type Violation struct {
 	File    string
-	Line    int
-	Column  int
+	Line    uint32
+	Column  uint32
 	Message string
 }

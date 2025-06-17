@@ -1,26 +1,35 @@
-package adapter
+package domain
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
-
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 )
 
 var lineRegex = regexp.MustCompile(`^([^:]+):(\d+):(\d+)$`)
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
+type CheckResult struct {
+	body string
+}
+
+func NewCheckResult(body string) *CheckResult {
+	return &CheckResult{body: body}
+}
+
 // ParsePackwerkOutput parses the output of 'packwerk check' and returns violations.
-func ParsePackwerkOutput(output string) []domain.Violation {
-	var violations []domain.Violation
-	lines := cleanOutputLines(output)
+func (c *CheckResult) Parse() []Violation {
+	var violations []Violation
+	lines := c.cleanOutputLines()
 	for i := 0; i < len(lines); i++ {
 		m := lineRegex.FindStringSubmatch(lines[i])
 		if m != nil && i+1 < len(lines) {
-			violations = append(violations, domain.Violation{
+			line, _ := strconv.Atoi(m[2])
+			column, _ := strconv.Atoi(m[3])
+			violations = append(violations, Violation{
 				File:    m[1],
-				Line:    atoi(m[2]),
-				Column:  atoi(m[3]),
+				Line:    uint32(line),
+				Column:  uint32(column),
 				Message: lines[i+1],
 			})
 			i++ // skip message line
@@ -29,9 +38,9 @@ func ParsePackwerkOutput(output string) []domain.Violation {
 	return violations
 }
 
-func cleanOutputLines(output string) []string {
+func (c *CheckResult) cleanOutputLines() []string {
 	var result []string
-	for _, line := range strings.Split(output, "\n") {
+	for _, line := range strings.Split(c.body, "\n") {
 		line = ansiEscape.ReplaceAllString(line, "")
 		line = strings.TrimSpace(line)
 		if line != "" {
@@ -39,15 +48,4 @@ func cleanOutputLines(output string) []string {
 		}
 	}
 	return result
-}
-
-func atoi(s string) int {
-	var n int
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			break
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
 }

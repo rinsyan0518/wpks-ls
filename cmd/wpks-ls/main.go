@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/rinsyan0518/wpks-ls/internal/app"
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter/lsp"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter/packwerk"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/usecase"
 )
 
 func main() {
-	runner := adapter.PackwerkRunnerImpl{}
-	publisher := adapter.DiagnosticsPublisherImpl{}
-	server := app.NewLSPServer(runner, publisher)
+	diagnoseFile := usecase.NewDiagnoseFile(packwerk.Runner{})
+	server := lsp.NewServer(diagnoseFile)
 	server.Start()
 }
