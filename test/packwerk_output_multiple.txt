@@ -1,0 +1,7 @@
+lib/foo.rb:1:1
+First violation
+
+[31mlib/bar.rb:2:2[0m
+Second violation
+lib/baz.rb:3:3
+Third violation

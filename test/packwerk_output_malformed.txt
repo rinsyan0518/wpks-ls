@@ -1,0 +1,4 @@
+This is not a valid violation line
+Just some random output
+lib/foo.rb:1:1
+But this one is valid

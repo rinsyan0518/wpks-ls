@@ -1,0 +1,5 @@
+lib/foo.rb:10:5
+Some violation message here
+
+[31mlib/bar.rb:20:3[0m
+Another violation message
