@@ -20,10 +20,10 @@ func TestCheckResult_Parse(t *testing.T) {
 		t.Fatalf("expected 2 violations, got %d", len(violations))
 	}
 
-	if violations[0].File != "lib/foo.rb" || violations[0].Line != 10 || violations[0].Column != 5 || violations[0].Message != "Some violation message here" {
+	if violations[0].File != "lib/foo.rb" || violations[0].Line != 10 || violations[0].Character != 5 || violations[0].Message != "Some violation message here" {
 		t.Errorf("unexpected first violation: %+v", violations[0])
 	}
-	if violations[1].File != "lib/bar.rb" || violations[1].Line != 20 || violations[1].Column != 3 || violations[1].Message != "Another violation message" {
+	if violations[1].File != "lib/bar.rb" || violations[1].Line != 20 || violations[1].Character != 3 || violations[1].Message != "Another violation message" {
 		t.Errorf("unexpected second violation: %+v", violations[1])
 	}
 }

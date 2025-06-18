@@ -36,7 +36,7 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 		t.Fatalf("expected 1 diagnostic, got %d", len(diagnostics))
 	}
 	d := diagnostics[0]
-	if d.Range.Start.Line != 2 || d.Range.Start.Character != 1 || d.Message != "Sample violation from diagnose file" {
+	if d.Range.Start.Line != 2 || d.Range.Start.Character != 2 || d.Range.End.Line != 3 || d.Range.End.Character != 0 || d.Message != "Sample violation from diagnose file" {
 		t.Errorf("unexpected diagnostic: %+v", d)
 	}
 }

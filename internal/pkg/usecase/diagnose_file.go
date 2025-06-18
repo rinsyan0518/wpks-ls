@@ -30,12 +30,12 @@ func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
 	}
 
 	violations := checkResult.Parse()
-	diagnostics := make([]domain.Diagnostic, 0, len(violations)+1)
+	diagnostics := make([]domain.Diagnostic, 0, len(violations))
 	for _, v := range violations {
 		diagnostics = append(diagnostics, domain.Diagnostic{
 			Range: domain.Range{
-				Start: domain.Position{Line: v.Line - 1, Character: v.Column - 1},
-				End:   domain.Position{Line: v.Line - 1, Character: v.Column - 1},
+				Start: domain.Position{Line: v.Line - 1, Character: v.Character},
+				End:   domain.Position{Line: v.Line, Character: 0},
 			},
 			Severity: domain.SeverityError,
 			Source:   "packwerk",

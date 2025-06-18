@@ -27,10 +27,10 @@ func (c *CheckResult) Parse() []Violation {
 			line, _ := strconv.Atoi(m[2])
 			column, _ := strconv.Atoi(m[3])
 			violations = append(violations, Violation{
-				File:    m[1],
-				Line:    uint32(line),
-				Column:  uint32(column),
-				Message: lines[i+1],
+				File:      m[1],
+				Line:      uint32(line),
+				Character: uint32(column),
+				Message:   lines[i+1],
 			})
 			i++ // skip message line
 		}

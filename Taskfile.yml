@@ -11,3 +11,7 @@ tasks:
       - go.sum
     generates:
       - bin/wpks-ls
+  test:
+    desc: Run all Go tests
+    cmds:
+      - go test ./...
