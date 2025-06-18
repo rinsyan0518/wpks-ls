@@ -61,19 +61,7 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 		return err
 	}
 
-	lspDiagnostics := make([]protocol.Diagnostic, 0, len(diagnostics))
-	for _, d := range diagnostics {
-		severity := protocol.DiagnosticSeverity(d.Severity)
-		lspDiagnostics = append(lspDiagnostics, protocol.Diagnostic{
-			Range: protocol.Range{
-				Start: protocol.Position{Line: d.Range.Start.Line, Character: d.Range.Start.Character},
-				End:   protocol.Position{Line: d.Range.End.Line, Character: d.Range.End.Character},
-			},
-			Severity: &severity,
-			Source:   &d.Source,
-			Message:  d.Message,
-		})
-	}
+	lspDiagnostics := MapDiagnostics(diagnostics)
 
 	ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
 		URI:         params.TextDocument.URI,
@@ -91,19 +79,7 @@ func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocume
 		return err
 	}
 
-	lspDiagnostics := make([]protocol.Diagnostic, 0, len(diagnostics))
-	for _, d := range diagnostics {
-		severity := protocol.DiagnosticSeverity(d.Severity)
-		lspDiagnostics = append(lspDiagnostics, protocol.Diagnostic{
-			Range: protocol.Range{
-				Start: protocol.Position{Line: d.Range.Start.Line, Character: d.Range.Start.Character},
-				End:   protocol.Position{Line: d.Range.End.Line, Character: d.Range.End.Character},
-			},
-			Severity: &severity,
-			Source:   &d.Source,
-			Message:  d.Message,
-		})
-	}
+	lspDiagnostics := MapDiagnostics(diagnostics)
 
 	ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
 		URI:         params.TextDocument.URI,
