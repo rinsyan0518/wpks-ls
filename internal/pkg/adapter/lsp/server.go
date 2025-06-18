@@ -23,10 +23,10 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 // Start runs the LSP server loop.
 func (s *Server) Start() {
 	handler := protocol.Handler{
-		Initialize:            s.onInitialize,
-		Initialized:           s.onInitialized,
-		TextDocumentDidOpen:   s.onDidOpen,
-		TextDocumentDidChange: s.onDidChange,
+		Initialize:          s.onInitialize,
+		Initialized:         s.onInitialized,
+		TextDocumentDidOpen: s.onDidOpen,
+		TextDocumentDidSave: s.onDidSave,
 	}
 	ls := server.NewServer(&handler, "wpks-ls", false)
 	ls.RunStdio()
@@ -35,6 +35,7 @@ func (s *Server) Start() {
 func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
 	openClose := true
 	change := protocol.TextDocumentSyncKindIncremental
+	save := true
 
 	s.configure.Configure(*params.RootURI, *params.RootPath)
 
@@ -43,6 +44,7 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 			TextDocumentSync: &protocol.TextDocumentSyncOptions{
 				OpenClose: &openClose,
 				Change:    &change,
+				Save:      &save,
 			},
 		},
 	}, nil
@@ -81,7 +83,7 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 	return nil
 }
 
-func (s *Server) onDidChange(ctx *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
+func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
 	uri := params.TextDocument.URI
 
 	diagnostics, err := s.diagnoseFile.Diagnose(string(uri))
