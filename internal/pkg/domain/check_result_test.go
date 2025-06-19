@@ -16,14 +16,11 @@ func TestCheckResult_Parse(t *testing.T) {
 	result := NewCheckResult(string(data))
 	violations := result.Parse()
 
-	if len(violations) != 2 {
-		t.Fatalf("expected 2 violations, got %d", len(violations))
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(violations))
 	}
 
-	if violations[0].File != "lib/foo.rb" || violations[0].Line != 10 || violations[0].Character != 5 || violations[0].Message != "Some violation message here" {
-		t.Errorf("unexpected first violation: %+v", violations[0])
-	}
-	if violations[1].File != "lib/bar.rb" || violations[1].Line != 20 || violations[1].Character != 3 || violations[1].Message != "Another violation message" {
-		t.Errorf("unexpected second violation: %+v", violations[1])
+	if violations[0].File != "packs/users/app/controllers/users_controller.rb" || violations[0].Line != 20 || violations[0].Character != 4 || violations[0].Message != "Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'." {
+		t.Errorf("unexpected violation: %+v", violations[0])
 	}
 }

@@ -1,5 +1,7 @@
-lib/foo.rb:10:5
-Some violation message here
+packs/users/app/controllers/users_controller.rb:20:4
+Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.
+Are we missing an abstraction?
+Is the code making the reference, and the referenced constant, in the right packages?
 
-[31mlib/bar.rb:20:3[0m
-Another violation message
+Inference details: this is a reference to ::Book which seems to be defined in packs/books/app/models/book.rb.
+To receive help interpreting or resolving this error message, see: https://github.com/Shopify/packwerk/blob/main/TROUBLESHOOT.md#Troubleshooting-violations

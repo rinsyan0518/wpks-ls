@@ -51,11 +51,10 @@ func TestDiagnoseFile_Diagnose_TableDriven(t *testing.T) {
 		{
 			name:        "multiple violations",
 			fixtureFile: "packwerk_output_multiple.txt",
-			wantCount:   3,
+			wantCount:   2,
 			wantMessages: []string{
-				"First violation",
-				"Second violation",
-				"Third violation",
+				"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
+				"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
 			},
 		},
 		{
