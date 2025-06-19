@@ -5,4 +5,5 @@ type Violation struct {
 	Line      uint32
 	Character uint32
 	Message   string
+	Type      string // e.g. "Dependency violation"
 }

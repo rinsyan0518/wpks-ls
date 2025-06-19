@@ -8,6 +8,7 @@ import (
 
 var lineRegex = regexp.MustCompile(`^([^:]+):(\d+):(\d+)$`)
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+var messageRegex = regexp.MustCompile(`^([^:]+): `)
 
 type CheckResult struct {
 	body string
@@ -26,11 +27,17 @@ func (c *CheckResult) Parse() []Violation {
 		if m != nil && i+1 < len(lines) {
 			line, _ := strconv.Atoi(m[2])
 			column, _ := strconv.Atoi(m[3])
+			msg := lines[i+1]
+			violationType := ""
+			if mm := messageRegex.FindStringSubmatch(msg); mm != nil {
+				violationType = mm[1]
+			}
 			violations = append(violations, Violation{
 				File:      m[1],
 				Line:      uint32(line),
 				Character: uint32(column),
-				Message:   lines[i+1],
+				Message:   msg,
+				Type:      violationType,
 			})
 			i++ // skip message line
 		}
