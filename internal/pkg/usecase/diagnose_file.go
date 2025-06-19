@@ -35,7 +35,7 @@ func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
 		diagnostics = append(diagnostics, domain.Diagnostic{
 			Range: domain.Range{
 				Start: domain.Position{Line: v.Line - 1, Character: v.Character},
-				End:   domain.Position{Line: v.Line, Character: 0},
+				End:   domain.Position{Line: v.Line - 1, Character: v.Character + 1},
 			},
 			Severity: domain.SeverityError,
 			Source:   "packwerk",
