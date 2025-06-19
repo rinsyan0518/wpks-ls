@@ -27,10 +27,20 @@ func (c *CheckResult) Parse() []Violation {
 		if m != nil && i+1 < len(lines) {
 			line, _ := strconv.Atoi(m[2])
 			column, _ := strconv.Atoi(m[3])
-			msg := lines[i+1]
+			// Collect all lines after the match until the next blank line
+			msgLines := []string{}
+			for j := i + 1; j < len(lines); j++ {
+				if lines[j] == "" {
+					break
+				}
+				msgLines = append(msgLines, lines[j])
+			}
+			msg := strings.Join(msgLines, "\n")
 			violationType := ""
-			if mm := messageRegex.FindStringSubmatch(msg); mm != nil {
-				violationType = mm[1]
+			if len(msgLines) > 0 {
+				if mm := messageRegex.FindStringSubmatch(msgLines[0]); mm != nil {
+					violationType = mm[1]
+				}
 			}
 			violations = append(violations, Violation{
 				File:      m[1],
@@ -39,7 +49,7 @@ func (c *CheckResult) Parse() []Violation {
 				Message:   msg,
 				Type:      violationType,
 			})
-			i++ // skip message line
+			i += len(msgLines) // skip message lines
 		}
 	}
 	return violations
@@ -50,9 +60,7 @@ func (c *CheckResult) cleanOutputLines() []string {
 	for _, line := range strings.Split(c.body, "\n") {
 		line = ansiEscape.ReplaceAllString(line, "")
 		line = strings.TrimSpace(line)
-		if line != "" {
-			result = append(result, line)
-		}
+		result = append(result, line)
 	}
 	return result
 }

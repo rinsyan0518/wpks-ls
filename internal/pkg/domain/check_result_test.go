@@ -3,6 +3,7 @@ package domain
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -16,15 +17,34 @@ func TestCheckResult_Parse(t *testing.T) {
 	result := NewCheckResult(string(data))
 	violations := result.Parse()
 
+	expectedFile := "packs/users/app/controllers/users_controller.rb"
+	expectedLine := uint32(20)
+	expectedChar := uint32(4)
+	expectedType := "Dependency violation"
+	expectedMessage := strings.Join([]string{
+		"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
+		"Are we missing an abstraction?",
+		"Is the code making the reference, and the referenced constant, in the right packages?",
+	}, "\n")
+
 	if len(violations) != 1 {
 		t.Fatalf("expected 1 violation, got %d", len(violations))
 	}
+	v := violations[0]
 
-	if violations[0].File != "packs/users/app/controllers/users_controller.rb" ||
-		violations[0].Line != 20 ||
-		violations[0].Character != 4 ||
-		violations[0].Message != "Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'." ||
-		violations[0].Type != "Dependency violation" {
-		t.Errorf("unexpected violation: %+v", violations[0])
+	if v.File != expectedFile {
+		t.Errorf("unexpected file: got %q, want %q", v.File, expectedFile)
+	}
+	if v.Line != expectedLine {
+		t.Errorf("unexpected line: got %d, want %d", v.Line, expectedLine)
+	}
+	if v.Character != expectedChar {
+		t.Errorf("unexpected character: got %d, want %d", v.Character, expectedChar)
+	}
+	if v.Type != expectedType {
+		t.Errorf("unexpected type: got %q, want %q", v.Type, expectedType)
+	}
+	if v.Message != expectedMessage {
+		t.Errorf("unexpected message:\n--- got ---\n%q\n--- want ---\n%q", v.Message, expectedMessage)
 	}
 }

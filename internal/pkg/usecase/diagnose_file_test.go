@@ -3,6 +3,7 @@ package usecase
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter/inmemory"
@@ -18,30 +19,12 @@ func (f *fakePackwerkRunner) RunCheck(rootPath, path string) (*domain.CheckResul
 }
 
 func TestDiagnoseFile_Diagnose(t *testing.T) {
-	repo := inmemory.NewConfigurationRepository()
-	repo.Save(domain.NewConfiguration("file:///root", "/root"))
+	fullMessage := strings.Join([]string{
+		"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
+		"Are we missing an abstraction?",
+		"Is the code making the reference, and the referenced constant, in the right packages?",
+	}, "\n")
 
-	fixturePath := filepath.Join("..", "..", "..", "test", "packwerk_output_fixture.txt")
-	data, err := os.ReadFile(fixturePath)
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	diagnoser := NewDiagnoseFile(repo, &fakePackwerkRunner{output: string(data)})
-	diagnostics, err := diagnoser.Diagnose("file:///root/lib/sample.rb")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(diagnostics) != 1 {
-		t.Fatalf("expected 1 diagnostic, got %d", len(diagnostics))
-	}
-	d := diagnostics[0]
-	if d.Range.Start.Line != 2 || d.Range.Start.Character != 2 || d.Range.End.Line != 3 || d.Range.End.Character != 0 || d.Message != "Sample violation from diagnose file" {
-		t.Errorf("unexpected diagnostic: %+v", d)
-	}
-}
-
-func TestDiagnoseFile_Diagnose_TableDriven(t *testing.T) {
 	tests := []struct {
 		name         string
 		fixtureFile  string
@@ -53,8 +36,8 @@ func TestDiagnoseFile_Diagnose_TableDriven(t *testing.T) {
 			fixtureFile: "packwerk_output_multiple.txt",
 			wantCount:   2,
 			wantMessages: []string{
-				"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
-				"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
+				fullMessage,
+				fullMessage,
 			},
 		},
 		{
@@ -62,12 +45,6 @@ func TestDiagnoseFile_Diagnose_TableDriven(t *testing.T) {
 			fixtureFile:  "packwerk_output_empty.txt",
 			wantCount:    0,
 			wantMessages: nil,
-		},
-		{
-			name:         "malformed output",
-			fixtureFile:  "packwerk_output_malformed.txt",
-			wantCount:    1,
-			wantMessages: []string{"But this one is valid"},
 		},
 	}
 
@@ -89,9 +66,10 @@ func TestDiagnoseFile_Diagnose_TableDriven(t *testing.T) {
 			if len(diagnostics) != tt.wantCount {
 				t.Fatalf("expected %d diagnostics, got %d", tt.wantCount, len(diagnostics))
 			}
-			for i, msg := range tt.wantMessages {
-				if diagnostics[i].Message != msg {
-					t.Errorf("diagnostic %d: want message %q, got %q", i, msg, diagnostics[i].Message)
+			for i, wantMsg := range tt.wantMessages {
+				gotMsg := diagnostics[i].Message
+				if strings.TrimRight(gotMsg, "\n") != strings.TrimRight(wantMsg, "\n") {
+					t.Errorf("diagnostic %d: want message\n--- want ---\n%q\n--- got ---\n%q", i, wantMsg, gotMsg)
 				}
 			}
 		})

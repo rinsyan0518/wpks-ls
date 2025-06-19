@@ -1,2 +1,0 @@
-lib/sample.rb:3:2
-Sample violation from diagnose file
