@@ -2,17 +2,48 @@ package packwerk
 
 import (
 	"errors"
+	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/out"
 )
 
-type Runner struct{}
+type CheckerCommand interface {
+	RunCheck(rootPath, path string) (*domain.CheckResult, error)
+}
 
-func (Runner) RunCheck(rootPath string, path string) (*domain.CheckResult, error) {
+type CommandNotFoundError struct {
+	Cmd string
+}
+
+func (e CommandNotFoundError) Error() string {
+	return fmt.Sprintf("%s not found", e.Cmd)
+}
+
+func IsCommandNotFoundError(err error) bool {
+	_, ok := err.(CommandNotFoundError)
+	return ok
+}
+
+type Runner struct {
+	checkers []CheckerCommand
+}
+
+func NewRunnerWithDefaultCheckers() *Runner {
+	return NewRunner(
+		PksChecker{},
+		BundlePackwerkChecker{},
+		DirectPackwerkChecker{},
+	)
+}
+
+func NewRunner(checkers ...CheckerCommand) *Runner {
+	return &Runner{checkers: checkers}
+}
+
+func (r *Runner) RunCheck(rootPath string, path string) (*domain.CheckResult, error) {
 	// Skip diagnostics if packwerk.yml does not exist in the workspace root
 	if _, err := os.Stat(filepath.Join(rootPath, "packwerk.yml")); err != nil {
 		if os.IsNotExist(err) {
@@ -21,29 +52,21 @@ func (Runner) RunCheck(rootPath string, path string) (*domain.CheckResult, error
 		return nil, err
 	}
 
-	// Prefer bundle exec packwerk if available in the bundle context
-	bundlePath, bundleErr := exec.LookPath("bundle")
-	if bundleErr == nil {
-		showCmd := exec.Command(bundlePath, "show", "packwerk")
-		showCmd.Dir = rootPath
-		if err := showCmd.Run(); err == nil {
-			cmd := exec.Command(bundlePath, "exec", "packwerk", "check", "--", path)
-			cmd.Dir = rootPath
-			out, _ := cmd.Output()
-			return domain.NewCheckResult(string(out)), nil
+	var lastErr error
+	for _, checker := range r.checkers {
+		result, err := checker.RunCheck(rootPath, path)
+		if err == nil {
+			return result, nil
 		}
+		if IsCommandNotFoundError(err) {
+			continue // skip this checker
+		}
+		lastErr = err
 	}
-
-	// Fallback: try packwerk directly
-	packwerkPath, packwerkErr := exec.LookPath("packwerk")
-	if packwerkErr == nil {
-		cmd := exec.Command(packwerkPath, "check", "--", path)
-		cmd.Dir = rootPath
-		out, _ := cmd.Output()
-		return domain.NewCheckResult(string(out)), nil
+	if lastErr != nil {
+		return nil, lastErr
 	}
-
-	return nil, errors.New("packwerk not found")
+	return nil, errors.New("no checker command succeeded")
 }
 
 var _ out.PackwerkRunner = (*Runner)(nil)

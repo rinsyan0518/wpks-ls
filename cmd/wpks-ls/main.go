@@ -9,7 +9,7 @@ import (
 
 func main() {
 	configurationRepository := inmemory.NewConfigurationRepository()
-	diagnoseFile := usecase.NewDiagnoseFile(configurationRepository, packwerk.Runner{})
+	diagnoseFile := usecase.NewDiagnoseFile(configurationRepository, packwerk.NewRunnerWithDefaultCheckers())
 	configure := usecase.NewConfigure(configurationRepository)
 	server := lsp.NewServer(diagnoseFile, configure)
 	server.Start()
