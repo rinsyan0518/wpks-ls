@@ -33,11 +33,20 @@ func (s *Server) Start() {
 }
 
 func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
+	checkAllOnInitialized := false
+	if params.InitializationOptions != nil {
+		if options, ok := params.InitializationOptions.(map[string]any); ok {
+			if checkAll, ok := options["checkAllOnInitialized"].(bool); ok {
+				checkAllOnInitialized = checkAll
+			}
+		}
+	}
+
+	s.configure.Configure(*params.RootURI, *params.RootPath, checkAllOnInitialized)
+
 	openClose := true
 	change := protocol.TextDocumentSyncKindIncremental
 	save := true
-
-	s.configure.Configure(*params.RootURI, *params.RootPath)
 
 	return protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
@@ -51,6 +60,19 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 }
 
 func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
+	diagnostics, err := s.diagnoseFile.DiagnoseAll()
+	if err != nil {
+		return err
+	}
+
+	for uri, diagnostics := range diagnostics {
+		lspDiagnostics := MapDiagnostics(diagnostics)
+		ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
+			URI:         uri,
+			Diagnostics: lspDiagnostics,
+		})
+	}
+
 	return nil
 }
 

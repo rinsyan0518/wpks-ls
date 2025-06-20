@@ -6,6 +6,10 @@ import (
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/out"
 )
 
+const (
+	packwerkSource = "packwerk"
+)
+
 type DiagnoseFile struct {
 	configurationRepository out.ConfigurationRepository
 	packwerkRunner          out.PackwerkRunner
@@ -38,7 +42,7 @@ func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
 				End:   domain.Position{Line: v.Line - 1, Character: v.Character + 1},
 			},
 			Severity: domain.SeverityError,
-			Source:   "packwerk",
+			Source:   packwerkSource,
 			Message:  v.Message,
 		})
 	}
@@ -50,6 +54,10 @@ func (d *DiagnoseFile) DiagnoseAll() (map[string][]domain.Diagnostic, error) {
 	configuration, err := d.configurationRepository.GetConfiguration()
 	if err != nil {
 		return nil, err
+	}
+
+	if !configuration.CheckAllOnInitialized {
+		return map[string][]domain.Diagnostic{}, nil
 	}
 
 	checkResult, err := d.packwerkRunner.RunCheckAll(configuration.RootPath)
@@ -68,7 +76,7 @@ func (d *DiagnoseFile) DiagnoseAll() (map[string][]domain.Diagnostic, error) {
 				End:   domain.Position{Line: v.Line - 1, Character: v.Character + 1},
 			},
 			Severity: domain.SeverityError,
-			Source:   "packwerk",
+			Source:   packwerkSource,
 			Message:  v.Message,
 		}
 

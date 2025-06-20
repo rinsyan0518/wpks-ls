@@ -9,7 +9,7 @@ import (
 func TestConfigure_Configure(t *testing.T) {
 	repo := inmemory.NewConfigurationRepository()
 	uc := NewConfigure(repo)
-	err := uc.Configure("file:///root", "/root")
+	err := uc.Configure("file:///root", "/root", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

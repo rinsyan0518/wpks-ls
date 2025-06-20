@@ -8,7 +8,7 @@ import (
 
 func TestConfigurationRepository_SaveAndGet(t *testing.T) {
 	repo := NewConfigurationRepository()
-	conf := domain.NewConfiguration("file:///root", "/root")
+	conf := domain.NewConfiguration("file:///root", "/root", false)
 	err := repo.Save(conf)
 	if err != nil {
 		t.Fatalf("unexpected error on save: %v", err)

@@ -53,7 +53,7 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 	}
 
 	repo := inmemory.NewConfigurationRepository()
-	repo.Save(domain.NewConfiguration("file:///root", "/root"))
+	repo.Save(domain.NewConfiguration("file:///root", "/root", false))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

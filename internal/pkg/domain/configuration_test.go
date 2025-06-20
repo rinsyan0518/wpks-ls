@@ -3,14 +3,14 @@ package domain
 import "testing"
 
 func TestNewConfiguration(t *testing.T) {
-	c := NewConfiguration("file:///root", "/root")
+	c := NewConfiguration("file:///root", "/root", false)
 	if c.RootUri != "file:///root" || c.RootPath != "/root" {
 		t.Errorf("unexpected configuration: %+v", c)
 	}
 }
 
 func TestConfiguration_StripRootUri(t *testing.T) {
-	c := NewConfiguration("file:///root", "/root")
+	c := NewConfiguration("file:///root", "/root", false)
 	uri := "file:///root/foo/bar.rb"
 	stripped := c.StripRootUri(uri)
 	if stripped != "foo/bar.rb" {
@@ -18,7 +18,7 @@ func TestConfiguration_StripRootUri(t *testing.T) {
 	}
 
 	// Edge: no trailing slash in RootUri
-	c2 := NewConfiguration("file:///root", "/root")
+	c2 := NewConfiguration("file:///root", "/root", false)
 	uri2 := "file:///root/"
 	stripped2 := c2.StripRootUri(uri2)
 	if stripped2 != "" {
