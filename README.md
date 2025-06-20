@@ -61,6 +61,32 @@ vim.lsp.enable('wpks-ls')
 - Replace `/path/to/wpks-ls/bin/wpks-ls` with the actual path to your built binary.
 - Make sure your Ruby project has a `packwerk.yml` at the root.
 
+## Configuration
+
+`wpks-ls` supports the following initialization options, which can be passed via your LSP client.
+
+### `checkAllOnInitialized`
+
+- **Type**: `boolean`
+- **Default**: `false`
+
+If set to `true`, `wpks-ls` will run a full project check (`packwerk check`) when the language server is initialized. This is useful for seeing all violations across the project at startup.
+
+To enable this option in Neovim, add `init_options` to your server setup:
+
+```lua
+vim.lsp.config['wpks-ls'] = {
+  cmd = { '/path/to/wpks-ls/bin/wpks-ls' },
+  filetypes = { 'ruby' },
+  root_markers = { 'Gemfile', '.git' },
+  init_options = {
+    checkAllOnInitialized = true,
+  },
+}
+
+vim.lsp.enable('wpks-ls')
+```
+
 ## Fallback Order
 
 When running diagnostics, `wpks-ls` tries the following commands in order until one succeeds:
