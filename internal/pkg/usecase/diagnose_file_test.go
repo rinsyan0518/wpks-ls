@@ -18,6 +18,10 @@ func (f *fakePackwerkRunner) RunCheck(rootPath, path string) (*domain.CheckResul
 	return domain.NewCheckResult(f.output), nil
 }
 
+func (f *fakePackwerkRunner) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+	return domain.NewCheckResult(f.output), nil
+}
+
 func TestDiagnoseFile_Diagnose(t *testing.T) {
 	fullMessage := strings.Join([]string{
 		"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",

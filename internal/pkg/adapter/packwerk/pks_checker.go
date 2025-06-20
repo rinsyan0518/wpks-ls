@@ -8,13 +8,33 @@ import (
 
 type PksChecker struct{}
 
-func (PksChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
-	pksPath, pksErr := exec.LookPath("pks")
-	if pksErr != nil {
+func NewPksChecker() *PksChecker {
+	return &PksChecker{}
+}
+
+func (c *PksChecker) IsAvailable(rootPath string) bool {
+	_, pksErr := exec.LookPath("pks")
+	return pksErr == nil
+}
+
+func (c *PksChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
+	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"pks"}
 	}
-	cmd := exec.Command(pksPath, "-e", "check", "--", path)
+	cmd := exec.Command("pks", "-e", "check", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return domain.NewCheckResult(string(out)), nil
 }
+
+func (c *PksChecker) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+	if !c.IsAvailable(rootPath) {
+		return nil, CommandNotFoundError{"pks"}
+	}
+	cmd := exec.Command("pks", "-e", "check")
+	cmd.Dir = rootPath
+	out, _ := cmd.Output()
+	return domain.NewCheckResult(string(out)), nil
+}
+
+var _ CheckerCommand = &PksChecker{}

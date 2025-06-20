@@ -8,18 +8,42 @@ import (
 
 type BundlePackwerkChecker struct{}
 
-func (BundlePackwerkChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
+func NewBundlePackwerkChecker() *BundlePackwerkChecker {
+	return &BundlePackwerkChecker{}
+}
+
+func (c *BundlePackwerkChecker) IsAvailable(rootPath string) bool {
 	bundlePath, bundleErr := exec.LookPath("bundle")
 	if bundleErr != nil {
-		return nil, CommandNotFoundError{"bundle"}
+		return false
 	}
 	showCmd := exec.Command(bundlePath, "show", "packwerk")
 	showCmd.Dir = rootPath
 	if err := showCmd.Run(); err != nil {
-		return nil, CommandNotFoundError{"packwerk"}
+		return false
 	}
-	cmd := exec.Command(bundlePath, "exec", "packwerk", "check", "--", path)
+	return true
+}
+
+func (c *BundlePackwerkChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
+	if !c.IsAvailable(rootPath) {
+		return nil, CommandNotFoundError{"bundle"}
+	}
+
+	cmd := exec.Command("bundle", "exec", "packwerk", "check", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return domain.NewCheckResult(string(out)), nil
 }
+
+func (c *BundlePackwerkChecker) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+	if !c.IsAvailable(rootPath) {
+		return nil, CommandNotFoundError{"bundle"}
+	}
+	cmd := exec.Command("bundle", "exec", "packwerk", "check")
+	cmd.Dir = rootPath
+	out, _ := cmd.Output()
+	return domain.NewCheckResult(string(out)), nil
+}
+
+var _ CheckerCommand = &BundlePackwerkChecker{}

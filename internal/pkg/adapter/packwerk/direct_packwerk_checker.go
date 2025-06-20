@@ -8,13 +8,33 @@ import (
 
 type DirectPackwerkChecker struct{}
 
-func (DirectPackwerkChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
-	packwerkPath, packwerkErr := exec.LookPath("packwerk")
-	if packwerkErr != nil {
+func NewDirectPackwerkChecker() *DirectPackwerkChecker {
+	return &DirectPackwerkChecker{}
+}
+
+func (c *DirectPackwerkChecker) IsAvailable(rootPath string) bool {
+	_, packwerkErr := exec.LookPath("packwerk")
+	return packwerkErr == nil
+}
+
+func (c *DirectPackwerkChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
+	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"packwerk"}
 	}
-	cmd := exec.Command(packwerkPath, "check", "--", path)
+	cmd := exec.Command("packwerk", "check", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return domain.NewCheckResult(string(out)), nil
 }
+
+func (c *DirectPackwerkChecker) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+	if !c.IsAvailable(rootPath) {
+		return nil, CommandNotFoundError{"packwerk"}
+	}
+	cmd := exec.Command("packwerk", "check")
+	cmd.Dir = rootPath
+	out, _ := cmd.Output()
+	return domain.NewCheckResult(string(out)), nil
+}
+
+var _ CheckerCommand = &DirectPackwerkChecker{}

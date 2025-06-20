@@ -11,7 +11,9 @@ import (
 )
 
 type CheckerCommand interface {
+	IsAvailable(rootPath string) bool
 	RunCheck(rootPath, path string) (*domain.CheckResult, error)
+	RunCheckAll(rootPath string) (*domain.CheckResult, error)
 }
 
 type CommandNotFoundError struct {
@@ -33,10 +35,10 @@ type Runner struct {
 
 func NewRunnerWithDefaultCheckers() *Runner {
 	return NewRunner(
-		PksChecker{},
-		BinPackwerkChecker{},
-		BundlePackwerkChecker{},
-		DirectPackwerkChecker{},
+		NewPksChecker(),
+		NewBinPackwerkChecker(),
+		NewBundlePackwerkChecker(),
+		NewDirectPackwerkChecker(),
 	)
 }
 
@@ -44,18 +46,46 @@ func NewRunner(checkers ...CheckerCommand) *Runner {
 	return &Runner{checkers: checkers}
 }
 
-func (r *Runner) RunCheck(rootPath string, path string) (*domain.CheckResult, error) {
-	// Skip diagnostics if packwerk.yml does not exist in the workspace root
+func (r *Runner) IsAvailable(rootPath string) bool {
 	if _, err := os.Stat(filepath.Join(rootPath, "packwerk.yml")); err != nil {
 		if os.IsNotExist(err) {
-			return domain.NewCheckResult(""), nil
+			return false
 		}
-		return nil, err
+		return false
+	}
+	return true
+}
+
+func (r *Runner) RunCheck(rootPath string, path string) (*domain.CheckResult, error) {
+	if !r.IsAvailable(rootPath) {
+		return domain.NewCheckResult(""), nil
 	}
 
 	var lastErr error
 	for _, checker := range r.checkers {
 		result, err := checker.RunCheck(rootPath, path)
+		if err == nil {
+			return result, nil
+		}
+		if IsCommandNotFoundError(err) {
+			continue // skip this checker
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, errors.New("no checker command succeeded")
+}
+
+func (r *Runner) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+	if !r.IsAvailable(rootPath) {
+		return domain.NewCheckResult(""), nil
+	}
+
+	var lastErr error
+	for _, checker := range r.checkers {
+		result, err := checker.RunCheckAll(rootPath)
 		if err == nil {
 			return result, nil
 		}
