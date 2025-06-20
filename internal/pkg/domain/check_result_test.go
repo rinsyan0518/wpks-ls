@@ -3,48 +3,96 @@ package domain
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
 func TestCheckResult_Parse(t *testing.T) {
-	fixturePath := filepath.Join("..", "..", "..", "test", "check_result_fixture.txt")
-	data, err := os.ReadFile(fixturePath)
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
+	type expectedViolation struct {
+		File      string
+		Line      uint32
+		Character uint32
+		Type      string
+		Message   string
 	}
 
-	result := NewCheckResult(string(data))
-	violations := result.Parse()
+	tests := []struct {
+		name               string
+		fixtureFile        string
+		expectedViolations []expectedViolation
+	}{
+		{
+			name:        "single violation",
+			fixtureFile: "check_result_fixture.txt",
+			expectedViolations: []expectedViolation{
+				{
+					File:      "packs/users/app/controllers/users_controller.rb",
+					Line:      20,
+					Character: 4,
+					Type:      "Dependency violation",
+					Message:   "Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'. Are we missing an abstraction? Is the code making the reference, and the referenced constant, in the right packages?",
+				},
+			},
+		},
+		{
+			name:        "multiple violations",
+			fixtureFile: "packwerk_output_multiple.txt",
+			expectedViolations: []expectedViolation{
+				{
+					File:      "packs/users/app/controllers/users_controller.rb",
+					Line:      20,
+					Character: 4,
+					Type:      "Dependency violation",
+					Message:   "Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'. Are we missing an abstraction? Is the code making the reference, and the referenced constant, in the right packages?",
+				},
+				{
+					File:      "packs/users/app/controllers/users_controller.rb",
+					Line:      26,
+					Character: 4,
+					Type:      "Dependency violation",
+					Message:   "Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'. Are we missing an abstraction? Is the code making the reference, and the referenced constant, in the right packages?",
+				},
+			},
+		},
+		{
+			name:               "empty file",
+			fixtureFile:        "packwerk_output_empty.txt",
+			expectedViolations: []expectedViolation{},
+		},
+	}
 
-	expectedFile := "packs/users/app/controllers/users_controller.rb"
-	expectedLine := uint32(20)
-	expectedChar := uint32(4)
-	expectedType := "Dependency violation"
-	expectedMessage := strings.Join([]string{
-		"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
-		"Are we missing an abstraction?",
-		"Is the code making the reference, and the referenced constant, in the right packages?",
-	}, " ")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fixturePath := filepath.Join("..", "..", "..", "test", tt.fixtureFile)
+			data, err := os.ReadFile(fixturePath)
+			if err != nil {
+				t.Fatalf("failed to read fixture: %v", err)
+			}
 
-	if len(violations) != 1 {
-		t.Fatalf("expected 1 violation, got %d", len(violations))
-	}
-	v := violations[0]
+			result := NewCheckResult(string(data))
+			violations := result.Parse()
 
-	if v.File != expectedFile {
-		t.Errorf("unexpected file: got %q, want %q", v.File, expectedFile)
-	}
-	if v.Line != expectedLine {
-		t.Errorf("unexpected line: got %d, want %d", v.Line, expectedLine)
-	}
-	if v.Character != expectedChar {
-		t.Errorf("unexpected character: got %d, want %d", v.Character, expectedChar)
-	}
-	if v.Type != expectedType {
-		t.Errorf("unexpected type: got %q, want %q", v.Type, expectedType)
-	}
-	if v.Message != expectedMessage {
-		t.Errorf("unexpected message:\n--- got ---\n%q\n--- want ---\n%q", v.Message, expectedMessage)
+			if len(violations) != len(tt.expectedViolations) {
+				t.Fatalf("expected %d violations, got %d", len(tt.expectedViolations), len(violations))
+			}
+
+			for i, v := range violations {
+				ev := tt.expectedViolations[i]
+				if v.File != ev.File {
+					t.Errorf("violation %d: unexpected file: got %q, want %q", i, v.File, ev.File)
+				}
+				if v.Line != ev.Line {
+					t.Errorf("violation %d: unexpected line: got %d, want %d", i, v.Line, ev.Line)
+				}
+				if v.Character != ev.Character {
+					t.Errorf("violation %d: unexpected character: got %d, want %d", i, v.Character, ev.Character)
+				}
+				if v.Type != ev.Type {
+					t.Errorf("violation %d: unexpected type: got %q, want %q", i, v.Type, ev.Type)
+				}
+				if v.Message != ev.Message {
+					t.Errorf("violation %d: unexpected message:\n--- got ---\n%q\n--- want ---\n%q", i, v.Message, ev.Message)
+				}
+			}
+		})
 	}
 }
