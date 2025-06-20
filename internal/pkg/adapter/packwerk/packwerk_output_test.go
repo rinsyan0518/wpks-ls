@@ -1,4 +1,4 @@
-package domain
+package packwerk
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCheckResult_Parse(t *testing.T) {
+func TestPackwerkOutput_Parse(t *testing.T) {
 	type expectedViolation struct {
 		File      string
 		Line      uint32
@@ -62,13 +62,13 @@ func TestCheckResult_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fixturePath := filepath.Join("..", "..", "..", "test", tt.fixtureFile)
+			fixturePath := filepath.Join("..", "..", "..", "..", "test", tt.fixtureFile)
 			data, err := os.ReadFile(fixturePath)
 			if err != nil {
 				t.Fatalf("failed to read fixture: %v", err)
 			}
 
-			result := NewCheckResult(string(data))
+			result := NewPackwerkOutput(string(data))
 			violations := result.Parse()
 
 			if len(violations) != len(tt.expectedViolations) {

@@ -17,24 +17,24 @@ func (c *PksChecker) IsAvailable(rootPath string) bool {
 	return pksErr == nil
 }
 
-func (c *PksChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
+func (c *PksChecker) RunCheck(rootPath, path string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"pks"}
 	}
 	cmd := exec.Command("pks", "-e", "check", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
-	return domain.NewCheckResult(string(out)), nil
+	return NewPackwerkOutput(string(out)).Parse(), nil
 }
 
-func (c *PksChecker) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+func (c *PksChecker) RunCheckAll(rootPath string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"pks"}
 	}
 	cmd := exec.Command("pks", "-e", "check")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
-	return domain.NewCheckResult(string(out)), nil
+	return NewPackwerkOutput(string(out)).Parse(), nil
 }
 
 var _ CheckerCommand = &PksChecker{}

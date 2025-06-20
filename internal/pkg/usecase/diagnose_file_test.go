@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter/inmemory"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter/packwerk"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 )
 
@@ -14,12 +15,12 @@ type fakePackwerkRunner struct {
 	output string
 }
 
-func (f *fakePackwerkRunner) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
-	return domain.NewCheckResult(f.output), nil
+func (f *fakePackwerkRunner) RunCheck(rootPath, path string) ([]domain.Violation, error) {
+	return packwerk.NewPackwerkOutput(f.output).Parse(), nil
 }
 
-func (f *fakePackwerkRunner) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
-	return domain.NewCheckResult(f.output), nil
+func (f *fakePackwerkRunner) RunCheckAll(rootPath string) ([]domain.Violation, error) {
+	return packwerk.NewPackwerkOutput(f.output).Parse(), nil
 }
 
 func TestDiagnoseFile_Diagnose(t *testing.T) {

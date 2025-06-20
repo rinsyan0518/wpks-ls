@@ -22,7 +22,7 @@ func (c *BinPackwerkChecker) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (c *BinPackwerkChecker) RunCheck(rootPath, path string) (*domain.CheckResult, error) {
+func (c *BinPackwerkChecker) RunCheck(rootPath, path string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bin/packwerk"}
 	}
@@ -30,10 +30,10 @@ func (c *BinPackwerkChecker) RunCheck(rootPath, path string) (*domain.CheckResul
 	cmd := exec.Command(packwerkPath, "check", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
-	return domain.NewCheckResult(string(out)), nil
+	return NewPackwerkOutput(string(out)).Parse(), nil
 }
 
-func (c *BinPackwerkChecker) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+func (c *BinPackwerkChecker) RunCheckAll(rootPath string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bin/packwerk"}
 	}
@@ -41,7 +41,7 @@ func (c *BinPackwerkChecker) RunCheckAll(rootPath string) (*domain.CheckResult, 
 	cmd := exec.Command(packwerkPath, "check")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
-	return domain.NewCheckResult(string(out)), nil
+	return NewPackwerkOutput(string(out)).Parse(), nil
 }
 
 var _ CheckerCommand = &BinPackwerkChecker{}

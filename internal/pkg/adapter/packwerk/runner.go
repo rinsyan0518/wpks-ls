@@ -12,8 +12,8 @@ import (
 
 type CheckerCommand interface {
 	IsAvailable(rootPath string) bool
-	RunCheck(rootPath, path string) (*domain.CheckResult, error)
-	RunCheckAll(rootPath string) (*domain.CheckResult, error)
+	RunCheck(rootPath, path string) ([]domain.Violation, error)
+	RunCheckAll(rootPath string) ([]domain.Violation, error)
 }
 
 type CommandNotFoundError struct {
@@ -56,9 +56,9 @@ func (r *Runner) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (r *Runner) RunCheck(rootPath string, path string) (*domain.CheckResult, error) {
+func (r *Runner) RunCheck(rootPath string, path string) ([]domain.Violation, error) {
 	if !r.IsAvailable(rootPath) {
-		return domain.NewCheckResult(""), nil
+		return []domain.Violation{}, nil
 	}
 
 	var lastErr error
@@ -78,9 +78,9 @@ func (r *Runner) RunCheck(rootPath string, path string) (*domain.CheckResult, er
 	return nil, errors.New("no checker command succeeded")
 }
 
-func (r *Runner) RunCheckAll(rootPath string) (*domain.CheckResult, error) {
+func (r *Runner) RunCheckAll(rootPath string) ([]domain.Violation, error) {
 	if !r.IsAvailable(rootPath) {
-		return domain.NewCheckResult(""), nil
+		return nil, nil
 	}
 
 	var lastErr error
