@@ -34,6 +34,7 @@ type Runner struct {
 func NewRunnerWithDefaultCheckers() *Runner {
 	return NewRunner(
 		PksChecker{},
+		BinPackwerkChecker{},
 		BundlePackwerkChecker{},
 		DirectPackwerkChecker{},
 	)
