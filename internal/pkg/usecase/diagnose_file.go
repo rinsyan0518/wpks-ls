@@ -46,4 +46,36 @@ func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
 	return diagnostics, nil
 }
 
+func (d *DiagnoseFile) DiagnoseAll() (map[string][]domain.Diagnostic, error) {
+	configuration, err := d.configurationRepository.GetConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	checkResult, err := d.packwerkRunner.RunCheckAll(configuration.RootPath)
+	if err != nil {
+		return nil, err
+	}
+
+	violations := checkResult.Parse()
+	diagnosticsByFile := make(map[string][]domain.Diagnostic)
+
+	for _, v := range violations {
+		fileUri := configuration.BuildFileUri(v.File)
+		diagnostic := domain.Diagnostic{
+			Range: domain.Range{
+				Start: domain.Position{Line: v.Line - 1, Character: v.Character},
+				End:   domain.Position{Line: v.Line - 1, Character: v.Character + 1},
+			},
+			Severity: domain.SeverityError,
+			Source:   "packwerk",
+			Message:  v.Message,
+		}
+
+		diagnosticsByFile[fileUri] = append(diagnosticsByFile[fileUri], diagnostic)
+	}
+
+	return diagnosticsByFile, nil
+}
+
 var _ in.DiagnoseFile = (*DiagnoseFile)(nil)
