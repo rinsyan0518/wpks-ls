@@ -25,7 +25,7 @@ func TestCheckResult_Parse(t *testing.T) {
 		"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
 		"Are we missing an abstraction?",
 		"Is the code making the reference, and the referenced constant, in the right packages?",
-	}, "\n")
+	}, " ")
 
 	if len(violations) != 1 {
 		t.Fatalf("expected 1 violation, got %d", len(violations))

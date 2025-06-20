@@ -35,7 +35,7 @@ func (c *CheckResult) Parse() []Violation {
 				}
 				msgLines = append(msgLines, lines[j])
 			}
-			msg := strings.Join(msgLines, "\n")
+			msg := strings.Join(msgLines, " ")
 			violationType := ""
 			if len(msgLines) > 0 {
 				if mm := messageRegex.FindStringSubmatch(msgLines[0]); mm != nil {
