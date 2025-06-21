@@ -54,7 +54,10 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 	}
 
 	repo := inmemory.NewConfigurationRepository()
-	repo.Save(domain.NewConfiguration("file:///root", "/root", false))
+	err := repo.Save(domain.NewConfiguration("file:///root", "/root", false))
+	if err != nil {
+		t.Fatalf("failed to save configuration: %v", err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -126,7 +129,10 @@ func TestDiagnoseFile_DiagnoseAll(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := inmemory.NewConfigurationRepository()
-			repo.Save(domain.NewConfiguration("file:///root", "/root", tt.checkAllOnInitialized))
+			err := repo.Save(domain.NewConfiguration("file:///root", "/root", tt.checkAllOnInitialized))
+			if err != nil {
+				t.Fatalf("failed to save configuration: %v", err)
+			}
 
 			fixturePath := filepath.Join("..", "..", "..", "test", tt.fixtureFile)
 			data, err := os.ReadFile(fixturePath)

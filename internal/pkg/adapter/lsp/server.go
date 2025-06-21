@@ -21,7 +21,7 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 }
 
 // Start runs the LSP server loop.
-func (s *Server) Start() {
+func (s *Server) Start() error {
 	handler := protocol.Handler{
 		Initialize:          s.onInitialize,
 		Initialized:         s.onInitialized,
@@ -29,7 +29,7 @@ func (s *Server) Start() {
 		TextDocumentDidSave: s.onDidSave,
 	}
 	ls := server.NewServer(&handler, "wpks-ls", false)
-	ls.RunStdio()
+	return ls.RunStdio()
 }
 
 func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
@@ -42,7 +42,10 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 		}
 	}
 
-	s.configure.Configure(*params.RootURI, *params.RootPath, checkAllOnInitialized)
+	err := s.configure.Configure(*params.RootURI, *params.RootPath, checkAllOnInitialized)
+	if err != nil {
+		return nil, err
+	}
 
 	openClose := true
 	change := protocol.TextDocumentSyncKindIncremental
