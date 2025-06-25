@@ -14,8 +14,12 @@ tasks:
   test:
     desc: Run all Go tests
     cmds:
-      - go tool gotestsum --format=testdox ./...
+      - go tool -modfile=go.tool.mod gotestsum --format=testdox ./...
   lint:
     desc: Run all Go linters
     cmds:
-      - go tool golangci-lint run  ./...
+      - go tool -modfile=go.tool.mod golangci-lint run  ./...
+  tool:update:
+    desc: Upgrade all tools to their latest version
+    cmds:
+      - go get -modfile=go.tool.mod tool
