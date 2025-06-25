@@ -7,6 +7,11 @@ import (
 	"github.com/tliron/glsp/server"
 )
 
+const (
+	serverName    = "wpks-ls"
+	serverVersion = "0.0.1"
+)
+
 // Server represents a minimal LSP server.
 type Server struct {
 	diagnoseFile in.DiagnoseFile
@@ -23,12 +28,13 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 // Start runs the LSP server loop.
 func (s *Server) Start() error {
 	handler := protocol.Handler{
-		Initialize:          s.onInitialize,
-		Initialized:         s.onInitialized,
-		TextDocumentDidOpen: s.onDidOpen,
-		TextDocumentDidSave: s.onDidSave,
+		Initialize:           s.onInitialize,
+		Initialized:          s.onInitialized,
+		TextDocumentDidOpen:  s.onDidOpen,
+		TextDocumentDidSave:  s.onDidSave,
+		TextDocumentDidClose: s.onDidClose,
 	}
-	ls := server.NewServer(&handler, "wpks-ls", false)
+	ls := server.NewServer(&handler, serverName, false)
 	return ls.RunStdio()
 }
 
@@ -47,6 +53,7 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 		return nil, err
 	}
 
+	serverVersion := serverVersion
 	openClose := true
 	change := protocol.TextDocumentSyncKindIncremental
 	save := true
@@ -58,6 +65,10 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 				Change:    &change,
 				Save:      &save,
 			},
+		},
+		ServerInfo: &protocol.InitializeResultServerInfo{
+			Name:    serverName,
+			Version: &serverVersion,
 		},
 	}, nil
 }
@@ -111,5 +122,9 @@ func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocume
 		Diagnostics: lspDiagnostics,
 	})
 
+	return nil
+}
+
+func (s *Server) onDidClose(ctx *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 	return nil
 }
