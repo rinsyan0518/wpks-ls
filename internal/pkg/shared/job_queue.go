@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"os"
 )
 
 type JobFunc func()
@@ -28,7 +29,7 @@ func (jq *SerialJobQueue) worker() {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					fmt.Printf("job panic: %v\n", r)
+					fmt.Fprintf(os.Stderr, "job panic: %v\n", r)
 				}
 			}()
 			job()
