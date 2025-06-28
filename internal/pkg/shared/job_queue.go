@@ -1,5 +1,9 @@
 package shared
 
+import (
+	"fmt"
+)
+
 type JobFunc func()
 
 type JobQueue interface {
@@ -21,7 +25,14 @@ func NewSerialJobQueue(buffer int) *SerialJobQueue {
 
 func (jq *SerialJobQueue) worker() {
 	for job := range jq.queue {
-		job()
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Printf("job panic: %v\n", r)
+				}
+			}()
+			job()
+		}()
 	}
 }
 
