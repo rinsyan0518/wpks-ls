@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/in"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/shared"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	"github.com/tliron/glsp/server"
@@ -16,12 +17,14 @@ const (
 type Server struct {
 	diagnoseFile in.DiagnoseFile
 	configure    in.Configure
+	jobQueue     shared.JobQueue
 }
 
-func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
+func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure, jobQueue shared.JobQueue) *Server {
 	return &Server{
 		diagnoseFile: diagnoseFile,
 		configure:    configure,
+		jobQueue:     jobQueue,
 	}
 }
 
@@ -74,54 +77,57 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 }
 
 func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
-	diagnostics, err := s.diagnoseFile.DiagnoseAll()
-	if err != nil {
-		return err
-	}
-
-	for uri, diagnostics := range diagnostics {
-		lspDiagnostics := MapDiagnostics(diagnostics)
-		ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
-			URI:         uri,
-			Diagnostics: lspDiagnostics,
-		})
-	}
-
+	done := make(chan struct{})
+	s.jobQueue.Enqueue(func() {
+		diagnostics, err := s.diagnoseFile.DiagnoseAll()
+		if err == nil {
+			for uri, diagnostics := range diagnostics {
+				lspDiagnostics := MapDiagnostics(diagnostics)
+				ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
+					URI:         uri,
+					Diagnostics: lspDiagnostics,
+				})
+			}
+		}
+		close(done)
+	})
+	<-done
 	return nil
 }
 
 func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
+	done := make(chan struct{})
 	uri := params.TextDocument.URI
-	diagnostics, err := s.diagnoseFile.Diagnose(string(uri))
-	if err != nil {
-		return err
-	}
-
-	lspDiagnostics := MapDiagnostics(diagnostics)
-
-	ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
-		URI:         params.TextDocument.URI,
-		Diagnostics: lspDiagnostics,
+	s.jobQueue.Enqueue(func() {
+		diagnostics, err := s.diagnoseFile.Diagnose(string(uri))
+		if err == nil {
+			lspDiagnostics := MapDiagnostics(diagnostics)
+			ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
+				URI:         params.TextDocument.URI,
+				Diagnostics: lspDiagnostics,
+			})
+		}
+		close(done)
 	})
-
+	<-done
 	return nil
 }
 
 func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
+	done := make(chan struct{})
 	uri := params.TextDocument.URI
-
-	diagnostics, err := s.diagnoseFile.Diagnose(string(uri))
-	if err != nil {
-		return err
-	}
-
-	lspDiagnostics := MapDiagnostics(diagnostics)
-
-	ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
-		URI:         params.TextDocument.URI,
-		Diagnostics: lspDiagnostics,
+	s.jobQueue.Enqueue(func() {
+		diagnostics, err := s.diagnoseFile.Diagnose(string(uri))
+		if err == nil {
+			lspDiagnostics := MapDiagnostics(diagnostics)
+			ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
+				URI:         params.TextDocument.URI,
+				Diagnostics: lspDiagnostics,
+			})
+		}
+		close(done)
 	})
-
+	<-done
 	return nil
 }
 
