@@ -33,6 +33,7 @@ func (s *Server) Start() error {
 	handler := protocol.Handler{
 		Initialize:           s.onInitialize,
 		Initialized:          s.onInitialized,
+		Shutdown:             s.onShutdown,
 		TextDocumentDidOpen:  s.onDidOpen,
 		TextDocumentDidSave:  s.onDidSave,
 		TextDocumentDidClose: s.onDidClose,
@@ -74,6 +75,11 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 			Version: &serverVersion,
 		},
 	}, nil
+}
+
+func (s *Server) onShutdown(ctx *glsp.Context) error {
+	s.jobQueue.Close()
+	return nil
 }
 
 func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
