@@ -80,7 +80,7 @@ func (r *Runner) RunCheck(rootPath string, path string) ([]domain.Violation, err
 
 func (r *Runner) RunCheckAll(rootPath string) ([]domain.Violation, error) {
 	if !r.IsAvailable(rootPath) {
-		return nil, nil
+		return []domain.Violation{}, nil
 	}
 
 	var lastErr error

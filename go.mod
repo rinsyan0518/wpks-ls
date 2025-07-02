@@ -2,7 +2,10 @@ module github.com/rinsyan0518/wpks-ls
 
 go 1.24.4
 
-require github.com/tliron/glsp v0.2.2
+require (
+	github.com/google/uuid v1.6.0
+	github.com/tliron/glsp v0.2.2
+)
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
