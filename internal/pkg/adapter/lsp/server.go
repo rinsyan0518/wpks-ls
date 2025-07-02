@@ -19,10 +19,10 @@ const (
 type Server struct {
 	diagnoseFile in.DiagnoseFile
 	configure    in.Configure
-	jobQueue     shared.JobQueue
+	jobQueue     shared.KeyedJobQueue
 }
 
-func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure, jobQueue shared.JobQueue) *Server {
+func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure, jobQueue shared.KeyedJobQueue) *Server {
 	return &Server{
 		diagnoseFile: diagnoseFile,
 		configure:    configure,
@@ -88,6 +88,7 @@ func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedPa
 	// Run diagnostics for all files with progress notification
 	s.runWithDiagnoseProgress(
 		ctx,
+		"diagnoseAll",
 		"Diagnosing all files...",
 		func() (map[string][]domain.Diagnostic, error) {
 			return s.diagnoseFile.DiagnoseAll()
@@ -102,6 +103,7 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 	// Run diagnostics for the opened file with progress notification
 	s.runWithDiagnoseProgress(
 		ctx,
+		uri,
 		"Diagnosing file...",
 		func() (map[string][]domain.Diagnostic, error) {
 			diags, err := s.diagnoseFile.Diagnose(uri)
@@ -116,6 +118,7 @@ func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocume
 	// Run diagnostics for the saved file with progress notification
 	s.runWithDiagnoseProgress(
 		ctx,
+		uri,
 		"Diagnosing file...",
 		func() (map[string][]domain.Diagnostic, error) {
 			diags, err := s.diagnoseFile.Diagnose(uri)
@@ -133,6 +136,7 @@ func (s *Server) onDidClose(ctx *glsp.Context, params *protocol.DidCloseTextDocu
 // This function is specialized for running diagnose operations with progress reporting.
 func (s *Server) runWithDiagnoseProgress(
 	ctx *glsp.Context,
+	key string,
 	title string,
 	diagnoseFunc func() (map[string][]domain.Diagnostic, error),
 ) {
@@ -141,7 +145,7 @@ func (s *Server) runWithDiagnoseProgress(
 	// Request the client to create a progress token (asynchronously)
 	go ctx.Call(protocol.ServerWindowWorkDoneProgressCreate, protocol.WorkDoneProgressCreateParams{Token: token}, nil)
 
-	s.jobQueue.Enqueue(func() {
+	s.jobQueue.Enqueue(key, func() {
 		// Notify the client that the progress has begun
 		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
 			Token: token,

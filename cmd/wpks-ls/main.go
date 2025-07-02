@@ -12,7 +12,7 @@ import (
 
 func main() {
 	configurationRepository := inmemory.NewConfigurationRepository()
-	jobQueue := shared.NewSerialJobQueue(100)
+	jobQueue := shared.NewKeyedSerialJobQueue(100)
 	diagnoseFile := usecase.NewDiagnoseFile(configurationRepository, packwerk.NewRunnerWithDefaultCheckers())
 	configure := usecase.NewConfigure(configurationRepository)
 	server := lsp.NewServer(diagnoseFile, configure, jobQueue)

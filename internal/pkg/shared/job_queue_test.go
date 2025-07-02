@@ -6,11 +6,12 @@ import (
 	"time"
 )
 
-func TestSerialJobQueue_BasicEnqueueAndWait(t *testing.T) {
-	jq := NewSerialJobQueue(10)
+func TestKeyedSerialJobQueue_BasicEnqueueAndWait(t *testing.T) {
+	jq := NewKeyedSerialJobQueue(10)
 	var count int32
 	for i := 0; i < 5; i++ {
-		jq.Enqueue(func() {
+		key := "job" + string(rune(i))
+		jq.Enqueue(key, func() {
 			atomic.AddInt32(&count, 1)
 		})
 	}
@@ -20,13 +21,13 @@ func TestSerialJobQueue_BasicEnqueueAndWait(t *testing.T) {
 	}
 }
 
-func TestSerialJobQueue_PanicRecovery(t *testing.T) {
-	jq := NewSerialJobQueue(2)
+func TestKeyedSerialJobQueue_PanicRecovery(t *testing.T) {
+	jq := NewKeyedSerialJobQueue(2)
 	var ran int32
-	jq.Enqueue(func() {
+	jq.Enqueue("panic", func() {
 		panic("test panic")
 	})
-	jq.Enqueue(func() {
+	jq.Enqueue("after", func() {
 		atomic.AddInt32(&ran, 1)
 	})
 	jq.Close()
@@ -35,39 +36,40 @@ func TestSerialJobQueue_PanicRecovery(t *testing.T) {
 	}
 }
 
-func TestSerialJobQueue_ClosePreventsFurtherEnqueue(t *testing.T) {
-	jq := NewSerialJobQueue(1)
+func TestKeyedSerialJobQueue_ClosePreventsFurtherEnqueue(t *testing.T) {
+	jq := NewKeyedSerialJobQueue(1)
 	jq.Close()
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("expected panic when enqueueing after close")
 		}
 	}()
-	jq.Enqueue(func() {}) // should panic
+	jq.Enqueue("shouldpanic", func() {}) // should panic
 }
 
-func TestSerialJobQueue_CloseBlocksUntilAllJobsDone(t *testing.T) {
-	jq := NewSerialJobQueue(2)
+func TestKeyedSerialJobQueue_CloseBlocksUntilAllJobsDone(t *testing.T) {
+	jq := NewKeyedSerialJobQueue(2)
 	var done int32
-	jq.Enqueue(func() {
+	jq.Enqueue("wait", func() {
 		time.Sleep(50 * time.Millisecond)
 		atomic.StoreInt32(&done, 1)
 	})
 	jq.Close()
 }
 
-func TestSerialJobQueue_DrainSkipsJobs(t *testing.T) {
-	jq := NewSerialJobQueue(10)
+func TestKeyedSerialJobQueue_DuplicateKeyPrevention(t *testing.T) {
+	jq := NewKeyedSerialJobQueue(10)
 	var count int32
-	for i := 0; i < 100; i++ {
-		jq.Enqueue(func() {
-			time.Sleep(1 * time.Millisecond)
+	key := "dup"
+	for i := 0; i < 5; i++ {
+		jq.Enqueue(key, func() {
 			atomic.AddInt32(&count, 1)
+			time.Sleep(10 * time.Millisecond) // ensure worker has time to start
 		})
 	}
-	time.Sleep(2 * time.Millisecond) // workerが1つだけ消費する猶予
+	time.Sleep(20 * time.Millisecond) // allow worker to start the first job
 	jq.Close()
-	if count >= 100 {
-		t.Errorf("expected some jobs to be skipped after drain, got %d", count)
+	if count != 1 {
+		t.Errorf("expected only 1 job to run for duplicate key, got %d", count)
 	}
 }

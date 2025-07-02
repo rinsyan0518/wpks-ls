@@ -7,14 +7,21 @@ import (
 	"sync/atomic"
 )
 
-type JobFunc func()
+// KeyedJobFunc is a job function with a key.
+type KeyedJobFunc func()
 
-type JobQueue interface {
-	Enqueue(job JobFunc)
+// KeyedJobQueue is a job queue that prevents duplicate keys in the queue.
+type KeyedJobQueue interface {
+	Enqueue(key string, job KeyedJobFunc)
 	Close()
 }
 
-// queueState is an enum-like type for SerialJobQueue state
+type keyedJob struct {
+	key string
+	job KeyedJobFunc
+}
+
+// queueState is an enum-like type for KeyedSerialJobQueue state
 // stateRunning: queue is accepting and executing jobs
 // stateDraining: queue is draining (after Close, queued but unstarted jobs are skipped)
 // stateClosed: queue is fully closed
@@ -26,34 +33,46 @@ const (
 	stateClosed                     // queue is fully closed
 )
 
-// SerialJobQueue is a channel-based serial job queue implementation with enum state.
-type SerialJobQueue struct {
-	queue chan JobFunc
-	state atomic.Int32
-	wg    sync.WaitGroup
+// KeyedSerialJobQueue is a serial job queue that prevents duplicate keys in the queue.
+type KeyedSerialJobQueue struct {
+	queue       chan keyedJob
+	pendingKeys map[string]struct{}
+	mu          sync.Mutex
+	state       atomic.Int32
+	wg          sync.WaitGroup
 }
 
-func NewSerialJobQueue(buffer int) *SerialJobQueue {
-	jq := &SerialJobQueue{
-		queue: make(chan JobFunc, buffer),
+func NewKeyedSerialJobQueue(buffer int) *KeyedSerialJobQueue {
+	jq := &KeyedSerialJobQueue{
+		queue:       make(chan keyedJob, buffer),
+		pendingKeys: make(map[string]struct{}),
 	}
 	jq.state.Store(int32(stateRunning))
 	go jq.worker()
 	return jq
 }
 
-// Enqueue adds a job to the queue. Panics if the queue is not running.
-func (jq *SerialJobQueue) Enqueue(job JobFunc) {
+// Enqueue adds a keyed job to the queue. If the key is already pending or running, it is not enqueued.
+func (jq *KeyedSerialJobQueue) Enqueue(key string, job KeyedJobFunc) {
+	jq.mu.Lock()
+	defer jq.mu.Unlock()
 	if jq.state.Load() != int32(stateRunning) {
 		panic("queue not running")
 	}
+	if _, exists := jq.pendingKeys[key]; exists {
+		return // already pending or running
+	}
+	jq.pendingKeys[key] = struct{}{}
 	jq.wg.Add(1)
-	jq.queue <- job
+	jq.queue <- keyedJob{key, job}
 }
 
 // worker executes jobs from the queue. If draining, jobs are skipped.
-func (jq *SerialJobQueue) worker() {
-	for job := range jq.queue {
+func (jq *KeyedSerialJobQueue) worker() {
+	for kj := range jq.queue {
+		jq.mu.Lock()
+		delete(jq.pendingKeys, kj.key)
+		jq.mu.Unlock()
 		if jq.state.Load() != int32(stateRunning) {
 			jq.wg.Done()
 			continue
@@ -65,18 +84,18 @@ func (jq *SerialJobQueue) worker() {
 				}
 				jq.wg.Done()
 			}()
-			job()
+			kj.job()
 		}()
 	}
 }
 
 // Close sets draining and closes the queue. Jobs remaining in the queue will not be executed.
 // Waits for all running jobs to finish, then sets the state to closed.
-func (jq *SerialJobQueue) Close() {
+func (jq *KeyedSerialJobQueue) Close() {
 	jq.state.Store(int32(stateDraining))
 	close(jq.queue)
 	jq.wg.Wait()
 	jq.state.Store(int32(stateClosed))
 }
 
-var _ JobQueue = (*SerialJobQueue)(nil)
+var _ KeyedJobQueue = (*KeyedSerialJobQueue)(nil)
