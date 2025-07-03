@@ -20,15 +20,6 @@ func NewDiagnoseFile(configurationRepository out.ConfigurationRepository, packwe
 }
 
 func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
-	return d.diagnose(uri)
-}
-
-func (d *DiagnoseFile) DiagnoseAll() (map[string][]domain.Diagnostic, error) {
-	return d.diagnoseAll()
-}
-
-// Private methods for actual logic
-func (d *DiagnoseFile) diagnose(uri string) ([]domain.Diagnostic, error) {
 	configuration, err := d.configurationRepository.GetConfiguration()
 	if err != nil {
 		return nil, err
@@ -58,7 +49,7 @@ func (d *DiagnoseFile) diagnose(uri string) ([]domain.Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func (d *DiagnoseFile) diagnoseAll() (map[string][]domain.Diagnostic, error) {
+func (d *DiagnoseFile) DiagnoseAll() (map[string][]domain.Diagnostic, error) {
 	configuration, err := d.configurationRepository.GetConfiguration()
 	if err != nil {
 		return nil, err
