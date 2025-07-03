@@ -30,7 +30,7 @@ func (c *BundlePackwerkChecker) RunCheck(rootPath, path string) ([]domain.Violat
 		return nil, CommandNotFoundError{"bundle"}
 	}
 
-	cmd := exec.Command("bundle", "exec", "packwerk", "check", "--", path)
+	cmd := exec.Command("bundle", "exec", "packwerk", "check", "--offenses-formatter=default", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
@@ -40,7 +40,7 @@ func (c *BundlePackwerkChecker) RunCheckAll(rootPath string) ([]domain.Violation
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bundle"}
 	}
-	cmd := exec.Command("bundle", "exec", "packwerk", "check")
+	cmd := exec.Command("bundle", "exec", "packwerk", "check", "--offenses-formatter=default")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

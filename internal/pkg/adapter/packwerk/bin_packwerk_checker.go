@@ -27,7 +27,7 @@ func (c *BinPackwerkChecker) RunCheck(rootPath, path string) ([]domain.Violation
 		return nil, CommandNotFoundError{"bin/packwerk"}
 	}
 	packwerkPath := filepath.Join(rootPath, "bin", "packwerk")
-	cmd := exec.Command(packwerkPath, "check", "--", path)
+	cmd := exec.Command(packwerkPath, "check", "--offenses-formatter=default", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
@@ -38,7 +38,7 @@ func (c *BinPackwerkChecker) RunCheckAll(rootPath string) ([]domain.Violation, e
 		return nil, CommandNotFoundError{"bin/packwerk"}
 	}
 	packwerkPath := filepath.Join(rootPath, "bin", "packwerk")
-	cmd := exec.Command(packwerkPath, "check")
+	cmd := exec.Command(packwerkPath, "check", "--offenses-formatter=default")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

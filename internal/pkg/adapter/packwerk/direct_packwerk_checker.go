@@ -21,7 +21,7 @@ func (c *DirectPackwerkChecker) RunCheck(rootPath, path string) ([]domain.Violat
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"packwerk"}
 	}
-	cmd := exec.Command("packwerk", "check", "--", path)
+	cmd := exec.Command("packwerk", "check", "--offenses-formatter=default", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
@@ -31,7 +31,7 @@ func (c *DirectPackwerkChecker) RunCheckAll(rootPath string) ([]domain.Violation
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"packwerk"}
 	}
-	cmd := exec.Command("packwerk", "check")
+	cmd := exec.Command("packwerk", "check", "--offenses-formatter=default")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
