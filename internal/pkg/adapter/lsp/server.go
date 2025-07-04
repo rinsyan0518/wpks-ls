@@ -1,6 +1,8 @@
 package lsp
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/in"
@@ -41,6 +43,7 @@ func (s *Server) Start() error {
 		TextDocumentDidClose: s.onDidClose,
 	}
 	ls := server.NewServer(&handler, serverName, false)
+	s.jobQueue.Start(context.Background())
 	return ls.RunStdio()
 }
 
@@ -90,8 +93,8 @@ func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedPa
 		ctx,
 		"diagnoseAll",
 		"Diagnosing all files...",
-		func() (map[string][]domain.Diagnostic, error) {
-			return s.diagnoseFile.DiagnoseAll()
+		func(ctx context.Context) (map[string][]domain.Diagnostic, error) {
+			return s.diagnoseFile.DiagnoseAll(ctx)
 		},
 	)
 
@@ -105,8 +108,8 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 		ctx,
 		uri,
 		"Diagnosing file...",
-		func() (map[string][]domain.Diagnostic, error) {
-			diags, err := s.diagnoseFile.Diagnose(uri)
+		func(ctx context.Context) (map[string][]domain.Diagnostic, error) {
+			diags, err := s.diagnoseFile.Diagnose(ctx, uri)
 			return map[string][]domain.Diagnostic{uri: diags}, err
 		},
 	)
@@ -120,8 +123,8 @@ func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocume
 		ctx,
 		uri,
 		"Diagnosing file...",
-		func() (map[string][]domain.Diagnostic, error) {
-			diags, err := s.diagnoseFile.Diagnose(uri)
+		func(ctx context.Context) (map[string][]domain.Diagnostic, error) {
+			diags, err := s.diagnoseFile.Diagnose(ctx, uri)
 			return map[string][]domain.Diagnostic{uri: diags}, err
 		},
 	)
@@ -135,20 +138,20 @@ func (s *Server) onDidClose(ctx *glsp.Context, params *protocol.DidCloseTextDocu
 // runWithDiagnoseProgress executes diagnostics with LSP progress notification.
 // This function is specialized for running diagnose operations with progress reporting.
 func (s *Server) runWithDiagnoseProgress(
-	ctx *glsp.Context,
+	glspCtx *glsp.Context,
 	key string,
 	title string,
-	diagnoseFunc func() (map[string][]domain.Diagnostic, error),
+	diagnoseFunc func(ctx context.Context) (map[string][]domain.Diagnostic, error),
 ) {
-	s.jobQueue.Enqueue(key, func() {
+	s.jobQueue.Enqueue(key, func(ctx context.Context) {
 		// Generate a unique progress token for this operation
 		token := protocol.ProgressToken{Value: uuid.New().String()}
 		// Request the client to create a progress token
-		ctx.Notify(protocol.ServerWindowWorkDoneProgressCreate, protocol.WorkDoneProgressCreateParams{Token: token})
+		glspCtx.Notify(protocol.ServerWindowWorkDoneProgressCreate, protocol.WorkDoneProgressCreateParams{Token: token})
 
 		// Notify the client that the progress has begun
 		cancellable := false
-		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
+		glspCtx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
 			Token: token,
 			Value: &protocol.WorkDoneProgressBegin{
 				Kind:        "begin",
@@ -160,7 +163,7 @@ func (s *Server) runWithDiagnoseProgress(
 		// Optionally notify intermediate progress (e.g., 50%)
 		message := "Diagnosing..."
 		percentage := protocol.UInteger(50)
-		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
+		glspCtx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
 			Token: token,
 			Value: &protocol.WorkDoneProgressReport{
 				Kind:       "report",
@@ -170,17 +173,17 @@ func (s *Server) runWithDiagnoseProgress(
 		})
 
 		// Run the actual diagnose function
-		results, err := diagnoseFunc()
+		results, err := diagnoseFunc(ctx)
 		if err == nil {
 			for uri, diagnostics := range results {
 				lspDiagnostics := MapDiagnostics(diagnostics)
-				ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
+				glspCtx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
 					URI:         protocol.DocumentUri(uri),
 					Diagnostics: lspDiagnostics,
 				})
 			}
 		} else {
-			ctx.Notify(protocol.ServerWindowLogMessage, &protocol.LogMessageParams{
+			glspCtx.Notify(protocol.ServerWindowLogMessage, &protocol.LogMessageParams{
 				Type:    protocol.MessageTypeError,
 				Message: "Error diagnosing file: " + err.Error(),
 			})
@@ -188,7 +191,7 @@ func (s *Server) runWithDiagnoseProgress(
 
 		// Notify the client that the progress has ended
 		message = "Diagnosis complete"
-		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
+		glspCtx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
 			Token: token,
 			Value: &protocol.WorkDoneProgressEnd{
 				Kind:    "end",

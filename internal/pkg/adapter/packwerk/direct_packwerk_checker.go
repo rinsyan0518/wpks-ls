@@ -1,6 +1,7 @@
 package packwerk
 
 import (
+	"context"
 	"os/exec"
 
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
@@ -17,21 +18,21 @@ func (c *DirectPackwerkChecker) IsAvailable(rootPath string) bool {
 	return packwerkErr == nil
 }
 
-func (c *DirectPackwerkChecker) RunCheck(rootPath, path string) ([]domain.Violation, error) {
+func (c *DirectPackwerkChecker) RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"packwerk"}
 	}
-	cmd := exec.Command("packwerk", "check", "--offenses-formatter=default", "--", path)
+	cmd := exec.CommandContext(context, "packwerk", "check", "--offenses-formatter=default", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
 }
 
-func (c *DirectPackwerkChecker) RunCheckAll(rootPath string) ([]domain.Violation, error) {
+func (c *DirectPackwerkChecker) RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"packwerk"}
 	}
-	cmd := exec.Command("packwerk", "check", "--offenses-formatter=default")
+	cmd := exec.CommandContext(context, "packwerk", "check", "--offenses-formatter=default")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

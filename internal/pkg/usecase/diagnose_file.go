@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"context"
+
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/in"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/out"
@@ -19,13 +21,14 @@ func NewDiagnoseFile(configurationRepository out.ConfigurationRepository, packwe
 	return &DiagnoseFile{configurationRepository: configurationRepository, packwerkRunner: packwerkRunner}
 }
 
-func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
+func (d *DiagnoseFile) Diagnose(context context.Context, uri string) ([]domain.Diagnostic, error) {
 	configuration, err := d.configurationRepository.GetConfiguration()
 	if err != nil {
 		return nil, err
 	}
 
 	violations, err := d.packwerkRunner.RunCheck(
+		context,
 		configuration.RootPath,
 		configuration.StripRootUri(uri),
 	)
@@ -49,7 +52,7 @@ func (d *DiagnoseFile) Diagnose(uri string) ([]domain.Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func (d *DiagnoseFile) DiagnoseAll() (map[string][]domain.Diagnostic, error) {
+func (d *DiagnoseFile) DiagnoseAll(context context.Context) (map[string][]domain.Diagnostic, error) {
 	configuration, err := d.configurationRepository.GetConfiguration()
 	if err != nil {
 		return nil, err
@@ -59,7 +62,10 @@ func (d *DiagnoseFile) DiagnoseAll() (map[string][]domain.Diagnostic, error) {
 		return map[string][]domain.Diagnostic{}, nil
 	}
 
-	violations, err := d.packwerkRunner.RunCheckAll(configuration.RootPath)
+	violations, err := d.packwerkRunner.RunCheckAll(
+		context,
+		configuration.RootPath,
+	)
 	if err != nil {
 		return nil, err
 	}

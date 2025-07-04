@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,11 +16,11 @@ type fakePackwerkRunner struct {
 	output string
 }
 
-func (f *fakePackwerkRunner) RunCheck(rootPath, path string) ([]domain.Violation, error) {
+func (f *fakePackwerkRunner) RunCheck(ctx context.Context, rootPath, path string) ([]domain.Violation, error) {
 	return packwerk.NewPackwerkOutput(f.output).Parse(), nil
 }
 
-func (f *fakePackwerkRunner) RunCheckAll(rootPath string) ([]domain.Violation, error) {
+func (f *fakePackwerkRunner) RunCheckAll(ctx context.Context, rootPath string) ([]domain.Violation, error) {
 	return packwerk.NewPackwerkOutput(f.output).Parse(), nil
 }
 
@@ -67,7 +68,7 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 				t.Fatalf("failed to read fixture: %v", err)
 			}
 			diagnoser := NewDiagnoseFile(repo, &fakePackwerkRunner{output: string(data)})
-			diagnostics, err := diagnoser.Diagnose("file:///root/lib/sample.rb")
+			diagnostics, err := diagnoser.Diagnose(context.Background(), "file:///root/lib/sample.rb")
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -140,7 +141,7 @@ func TestDiagnoseFile_DiagnoseAll(t *testing.T) {
 				t.Fatalf("failed to read fixture: %v", err)
 			}
 			diagnoser := NewDiagnoseFile(repo, &fakePackwerkRunner{output: string(data)})
-			diagnosticsByFile, err := diagnoser.DiagnoseAll()
+			diagnosticsByFile, err := diagnoser.DiagnoseAll(context.Background())
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

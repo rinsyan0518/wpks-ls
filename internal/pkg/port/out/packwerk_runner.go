@@ -1,8 +1,12 @@
 package out
 
-import "github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
+import (
+	"context"
+
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
+)
 
 type PackwerkRunner interface {
-	RunCheck(rootPath string, path string) ([]domain.Violation, error)
-	RunCheckAll(rootPath string) ([]domain.Violation, error)
+	RunCheck(context context.Context, rootPath string, path string) ([]domain.Violation, error)
+	RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error)
 }

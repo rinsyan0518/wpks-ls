@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -8,10 +9,11 @@ import (
 
 func TestKeyedSerialJobQueue_BasicEnqueueAndWait(t *testing.T) {
 	jq := NewKeyedSerialJobQueue(10)
+	jq.Start(context.Background())
 	var count int32
 	for i := 0; i < 5; i++ {
 		key := "job" + string(rune(i))
-		jq.Enqueue(key, func() {
+		jq.Enqueue(key, func(ctx context.Context) {
 			atomic.AddInt32(&count, 1)
 		})
 	}
@@ -23,11 +25,12 @@ func TestKeyedSerialJobQueue_BasicEnqueueAndWait(t *testing.T) {
 
 func TestKeyedSerialJobQueue_PanicRecovery(t *testing.T) {
 	jq := NewKeyedSerialJobQueue(2)
+	jq.Start(context.Background())
 	var ran int32
-	jq.Enqueue("panic", func() {
+	jq.Enqueue("panic", func(ctx context.Context) {
 		panic("test panic")
 	})
-	jq.Enqueue("after", func() {
+	jq.Enqueue("after", func(ctx context.Context) {
 		atomic.AddInt32(&ran, 1)
 	})
 	jq.Close()
@@ -38,19 +41,21 @@ func TestKeyedSerialJobQueue_PanicRecovery(t *testing.T) {
 
 func TestKeyedSerialJobQueue_ClosePreventsFurtherEnqueue(t *testing.T) {
 	jq := NewKeyedSerialJobQueue(1)
+	jq.Start(context.Background())
 	jq.Close()
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("expected panic when enqueueing after close")
 		}
 	}()
-	jq.Enqueue("shouldpanic", func() {}) // should panic
+	jq.Enqueue("shouldpanic", func(ctx context.Context) {}) // should panic
 }
 
 func TestKeyedSerialJobQueue_CloseBlocksUntilAllJobsDone(t *testing.T) {
 	jq := NewKeyedSerialJobQueue(2)
+	jq.Start(context.Background())
 	var done int32
-	jq.Enqueue("wait", func() {
+	jq.Enqueue("wait", func(ctx context.Context) {
 		time.Sleep(50 * time.Millisecond)
 		atomic.StoreInt32(&done, 1)
 	})
@@ -59,10 +64,11 @@ func TestKeyedSerialJobQueue_CloseBlocksUntilAllJobsDone(t *testing.T) {
 
 func TestKeyedSerialJobQueue_DuplicateKeyPrevention(t *testing.T) {
 	jq := NewKeyedSerialJobQueue(10)
+	jq.Start(context.Background())
 	var count int32
 	key := "dup"
 	for i := 0; i < 5; i++ {
-		jq.Enqueue(key, func() {
+		jq.Enqueue(key, func(ctx context.Context) {
 			atomic.AddInt32(&count, 1)
 			time.Sleep(10 * time.Millisecond) // ensure worker has time to start
 		})

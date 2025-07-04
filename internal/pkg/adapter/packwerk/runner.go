@@ -1,6 +1,7 @@
 package packwerk
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,8 +13,8 @@ import (
 
 type CheckerCommand interface {
 	IsAvailable(rootPath string) bool
-	RunCheck(rootPath, path string) ([]domain.Violation, error)
-	RunCheckAll(rootPath string) ([]domain.Violation, error)
+	RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error)
+	RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error)
 }
 
 type CommandNotFoundError struct {
@@ -56,14 +57,14 @@ func (r *Runner) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (r *Runner) RunCheck(rootPath string, path string) ([]domain.Violation, error) {
+func (r *Runner) RunCheck(context context.Context, rootPath string, path string) ([]domain.Violation, error) {
 	if !r.IsAvailable(rootPath) {
 		return []domain.Violation{}, nil
 	}
 
 	var lastErr error
 	for _, checker := range r.checkers {
-		result, err := checker.RunCheck(rootPath, path)
+		result, err := checker.RunCheck(context, rootPath, path)
 		if err == nil {
 			return result, nil
 		}
@@ -78,14 +79,14 @@ func (r *Runner) RunCheck(rootPath string, path string) ([]domain.Violation, err
 	return nil, errors.New("no checker command succeeded")
 }
 
-func (r *Runner) RunCheckAll(rootPath string) ([]domain.Violation, error) {
+func (r *Runner) RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error) {
 	if !r.IsAvailable(rootPath) {
 		return []domain.Violation{}, nil
 	}
 
 	var lastErr error
 	for _, checker := range r.checkers {
-		result, err := checker.RunCheckAll(rootPath)
+		result, err := checker.RunCheckAll(context, rootPath)
 		if err == nil {
 			return result, nil
 		}

@@ -1,6 +1,7 @@
 package packwerk
 
 import (
+	"context"
 	"os/exec"
 
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
@@ -25,22 +26,22 @@ func (c *BundlePackwerkChecker) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (c *BundlePackwerkChecker) RunCheck(rootPath, path string) ([]domain.Violation, error) {
+func (c *BundlePackwerkChecker) RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bundle"}
 	}
 
-	cmd := exec.Command("bundle", "exec", "packwerk", "check", "--offenses-formatter=default", "--", path)
+	cmd := exec.CommandContext(context, "bundle", "exec", "packwerk", "check", "--offenses-formatter=default", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
 }
 
-func (c *BundlePackwerkChecker) RunCheckAll(rootPath string) ([]domain.Violation, error) {
+func (c *BundlePackwerkChecker) RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bundle"}
 	}
-	cmd := exec.Command("bundle", "exec", "packwerk", "check", "--offenses-formatter=default")
+	cmd := exec.CommandContext(context, "bundle", "exec", "packwerk", "check", "--offenses-formatter=default")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

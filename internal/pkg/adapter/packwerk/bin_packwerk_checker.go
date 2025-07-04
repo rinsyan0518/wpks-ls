@@ -1,6 +1,7 @@
 package packwerk
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,23 +23,23 @@ func (c *BinPackwerkChecker) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (c *BinPackwerkChecker) RunCheck(rootPath, path string) ([]domain.Violation, error) {
+func (c *BinPackwerkChecker) RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bin/packwerk"}
 	}
 	packwerkPath := filepath.Join(rootPath, "bin", "packwerk")
-	cmd := exec.Command(packwerkPath, "check", "--offenses-formatter=default", "--", path)
+	cmd := exec.CommandContext(context, packwerkPath, "check", "--offenses-formatter=default", "--", path)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
 }
 
-func (c *BinPackwerkChecker) RunCheckAll(rootPath string) ([]domain.Violation, error) {
+func (c *BinPackwerkChecker) RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bin/packwerk"}
 	}
 	packwerkPath := filepath.Join(rootPath, "bin", "packwerk")
-	cmd := exec.Command(packwerkPath, "check", "--offenses-formatter=default")
+	cmd := exec.CommandContext(context, packwerkPath, "check", "--offenses-formatter=default")
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

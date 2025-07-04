@@ -1,8 +1,12 @@
 package in
 
-import "github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
+import (
+	"context"
+
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
+)
 
 type DiagnoseFile interface {
-	Diagnose(uri string) ([]domain.Diagnostic, error)
-	DiagnoseAll() (map[string][]domain.Diagnostic, error)
+	Diagnose(context context.Context, uri string) ([]domain.Diagnostic, error)
+	DiagnoseAll(context context.Context) (map[string][]domain.Diagnostic, error)
 }
