@@ -140,12 +140,12 @@ func (s *Server) runWithDiagnoseProgress(
 	title string,
 	diagnoseFunc func() (map[string][]domain.Diagnostic, error),
 ) {
-	// Generate a unique progress token for this operation
-	token := protocol.ProgressToken{Value: uuid.New().String()}
-	// Request the client to create a progress token (asynchronously)
-	go ctx.Call(protocol.ServerWindowWorkDoneProgressCreate, protocol.WorkDoneProgressCreateParams{Token: token}, nil)
-
 	s.jobQueue.Enqueue(key, func() {
+		// Generate a unique progress token for this operation
+		token := protocol.ProgressToken{Value: uuid.New().String()}
+		// Request the client to create a progress token
+		ctx.Notify(protocol.ServerWindowWorkDoneProgressCreate, protocol.WorkDoneProgressCreateParams{Token: token})
+
 		// Notify the client that the progress has begun
 		cancellable := false
 		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
@@ -179,6 +179,11 @@ func (s *Server) runWithDiagnoseProgress(
 					Diagnostics: lspDiagnostics,
 				})
 			}
+		} else {
+			ctx.Notify(protocol.ServerWindowLogMessage, &protocol.LogMessageParams{
+				Type:    protocol.MessageTypeError,
+				Message: "Error diagnosing file: " + err.Error(),
+			})
 		}
 
 		// Notify the client that the progress has ended
