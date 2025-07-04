@@ -147,22 +147,25 @@ func (s *Server) runWithDiagnoseProgress(
 
 	s.jobQueue.Enqueue(key, func() {
 		// Notify the client that the progress has begun
+		cancellable := false
 		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
 			Token: token,
-			Value: map[string]any{
-				"kind":        "begin",
-				"title":       title,
-				"cancellable": false,
+			Value: &protocol.WorkDoneProgressBegin{
+				Kind:        "begin",
+				Title:       title,
+				Cancellable: &cancellable,
 			},
 		})
 
 		// Optionally notify intermediate progress (e.g., 50%)
+		message := "Diagnosing..."
+		percentage := protocol.UInteger(50)
 		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
 			Token: token,
-			Value: map[string]any{
-				"kind":       "report",
-				"message":    "Diagnosing...",
-				"percentage": 50,
+			Value: &protocol.WorkDoneProgressReport{
+				Kind:       "report",
+				Message:    &message,
+				Percentage: &percentage,
 			},
 		})
 
@@ -179,11 +182,12 @@ func (s *Server) runWithDiagnoseProgress(
 		}
 
 		// Notify the client that the progress has ended
+		message = "Diagnosis complete"
 		ctx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
 			Token: token,
-			Value: map[string]any{
-				"kind":    "end",
-				"message": "Diagnosis complete",
+			Value: &protocol.WorkDoneProgressEnd{
+				Kind:    "end",
+				Message: &message,
 			},
 		})
 	})
