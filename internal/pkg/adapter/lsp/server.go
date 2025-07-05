@@ -92,8 +92,7 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 		uri,
 		"Diagnosing file...",
 		func(ctx context.Context) (map[string][]domain.Diagnostic, error) {
-			diags, err := s.diagnoseFile.Diagnose(ctx, uri)
-			return map[string][]domain.Diagnostic{uri: diags}, err
+			return s.diagnoseFile.Diagnose(ctx, uri)
 		},
 	)
 	return nil
@@ -107,8 +106,7 @@ func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocume
 		uri,
 		"Diagnosing file...",
 		func(ctx context.Context) (map[string][]domain.Diagnostic, error) {
-			diags, err := s.diagnoseFile.Diagnose(ctx, uri)
-			return map[string][]domain.Diagnostic{uri: diags}, err
+			return s.diagnoseFile.Diagnose(ctx, uri)
 		},
 	)
 	return nil

@@ -21,7 +21,7 @@ func NewDiagnoseFile(configurationRepository out.ConfigurationRepository, packwe
 	return &DiagnoseFile{configurationRepository: configurationRepository, packwerkRunner: packwerkRunner}
 }
 
-func (d *DiagnoseFile) Diagnose(context context.Context, uri string) ([]domain.Diagnostic, error) {
+func (d *DiagnoseFile) Diagnose(context context.Context, uri string) (map[string][]domain.Diagnostic, error) {
 	configuration, err := d.configurationRepository.GetConfiguration()
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (d *DiagnoseFile) Diagnose(context context.Context, uri string) ([]domain.D
 		})
 	}
 
-	return diagnostics, nil
+	return map[string][]domain.Diagnostic{uri: diagnostics}, nil
 }
 
 func (d *DiagnoseFile) DiagnoseAll(context context.Context) (map[string][]domain.Diagnostic, error) {

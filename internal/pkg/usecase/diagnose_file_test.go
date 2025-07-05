@@ -68,10 +68,21 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 				t.Fatalf("failed to read fixture: %v", err)
 			}
 			diagnoser := NewDiagnoseFile(repo, &fakePackwerkRunner{output: string(data)})
-			diagnostics, err := diagnoser.Diagnose(context.Background(), "file:///root/lib/sample.rb")
+			diagnosticsByFile, err := diagnoser.Diagnose(context.Background(), "file:///root/lib/sample.rb")
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
+
+			// Get diagnostics for the requested URI
+			uri := "file:///root/lib/sample.rb"
+			diagnostics, ok := diagnosticsByFile[uri]
+			if !ok && tt.wantCount > 0 {
+				t.Fatalf("expected diagnostics for URI %s, but got none", uri)
+			}
+			if !ok {
+				diagnostics = []domain.Diagnostic{}
+			}
+
 			if len(diagnostics) != tt.wantCount {
 				t.Fatalf("expected %d diagnostics, got %d", tt.wantCount, len(diagnostics))
 			}

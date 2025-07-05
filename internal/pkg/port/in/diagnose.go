@@ -7,6 +7,6 @@ import (
 )
 
 type DiagnoseFile interface {
-	Diagnose(context context.Context, uri string) ([]domain.Diagnostic, error)
+	Diagnose(context context.Context, uri string) (map[string][]domain.Diagnostic, error)
 	DiagnoseAll(context context.Context) (map[string][]domain.Diagnostic, error)
 }
