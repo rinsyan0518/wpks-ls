@@ -7,6 +7,6 @@ import (
 )
 
 type PackwerkRunner interface {
-	RunCheck(context context.Context, rootPath string, path string) ([]domain.Violation, error)
+	RunCheck(context context.Context, rootPath string, paths ...string) ([]domain.Violation, error)
 	RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error)
 }

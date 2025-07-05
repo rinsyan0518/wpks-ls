@@ -23,12 +23,21 @@ func (c *BinPackwerkChecker) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (c *BinPackwerkChecker) RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error) {
+func (c *BinPackwerkChecker) RunCheck(context context.Context, rootPath string, paths ...string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bin/packwerk"}
 	}
+
+	if len(paths) == 0 {
+		return []domain.Violation{}, nil
+	}
+
+	// bin/packwerk can accept multiple paths
 	packwerkPath := filepath.Join(rootPath, "bin", "packwerk")
-	cmd := exec.CommandContext(context, packwerkPath, "check", "--offenses-formatter=default", "--", path)
+	args := []string{"check", "--offenses-formatter=default", "--"}
+	args = append(args, paths...)
+
+	cmd := exec.CommandContext(context, packwerkPath, args...)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

@@ -18,11 +18,20 @@ func (c *DirectPackwerkChecker) IsAvailable(rootPath string) bool {
 	return packwerkErr == nil
 }
 
-func (c *DirectPackwerkChecker) RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error) {
+func (c *DirectPackwerkChecker) RunCheck(context context.Context, rootPath string, paths ...string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"packwerk"}
 	}
-	cmd := exec.CommandContext(context, "packwerk", "check", "--offenses-formatter=default", "--", path)
+
+	if len(paths) == 0 {
+		return []domain.Violation{}, nil
+	}
+
+	// packwerk can accept multiple paths
+	args := []string{"check", "--offenses-formatter=default", "--"}
+	args = append(args, paths...)
+
+	cmd := exec.CommandContext(context, "packwerk", args...)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

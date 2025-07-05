@@ -26,12 +26,20 @@ func (c *BundlePackwerkChecker) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (c *BundlePackwerkChecker) RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error) {
+func (c *BundlePackwerkChecker) RunCheck(context context.Context, rootPath string, paths ...string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"bundle"}
 	}
 
-	cmd := exec.CommandContext(context, "bundle", "exec", "packwerk", "check", "--offenses-formatter=default", "--", path)
+	if len(paths) == 0 {
+		return []domain.Violation{}, nil
+	}
+
+	// bundle exec packwerk can accept multiple paths
+	args := []string{"exec", "packwerk", "check", "--offenses-formatter=default", "--"}
+	args = append(args, paths...)
+
+	cmd := exec.CommandContext(context, "bundle", args...)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil

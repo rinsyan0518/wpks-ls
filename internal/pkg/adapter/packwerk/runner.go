@@ -13,7 +13,7 @@ import (
 
 type CheckerCommand interface {
 	IsAvailable(rootPath string) bool
-	RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error)
+	RunCheck(context context.Context, rootPath string, paths ...string) ([]domain.Violation, error)
 	RunCheckAll(context context.Context, rootPath string) ([]domain.Violation, error)
 }
 
@@ -57,14 +57,18 @@ func (r *Runner) IsAvailable(rootPath string) bool {
 	return true
 }
 
-func (r *Runner) RunCheck(context context.Context, rootPath string, path string) ([]domain.Violation, error) {
+func (r *Runner) RunCheck(context context.Context, rootPath string, paths ...string) ([]domain.Violation, error) {
+	if len(paths) == 0 {
+		return []domain.Violation{}, nil
+	}
+
 	if !r.IsAvailable(rootPath) {
 		return []domain.Violation{}, nil
 	}
 
 	var lastErr error
 	for _, checker := range r.checkers {
-		result, err := checker.RunCheck(context, rootPath, path)
+		result, err := checker.RunCheck(context, rootPath, paths...)
 		if err == nil {
 			return result, nil
 		}

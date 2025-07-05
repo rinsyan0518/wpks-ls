@@ -16,8 +16,26 @@ type fakePackwerkRunner struct {
 	output string
 }
 
-func (f *fakePackwerkRunner) RunCheck(ctx context.Context, rootPath, path string) ([]domain.Violation, error) {
-	return packwerk.NewPackwerkOutput(f.output).Parse(), nil
+func (f *fakePackwerkRunner) RunCheck(ctx context.Context, rootPath string, paths ...string) ([]domain.Violation, error) {
+	violations := packwerk.NewPackwerkOutput(f.output).Parse()
+
+	// If there are no violations or no paths, return empty
+	if len(violations) == 0 || len(paths) == 0 {
+		return []domain.Violation{}, nil
+	}
+
+	// Simulate violations for each path by duplicating the violations
+	var allViolations []domain.Violation
+	for _, path := range paths {
+		for _, v := range violations {
+			// Create a copy of the violation with the specific path
+			violation := v
+			violation.File = path
+			allViolations = append(allViolations, violation)
+		}
+	}
+
+	return allViolations, nil
 }
 
 func (f *fakePackwerkRunner) RunCheckAll(ctx context.Context, rootPath string) ([]domain.Violation, error) {
@@ -33,24 +51,52 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 
 	tests := []struct {
 		name         string
+		uris         []string
 		fixtureFile  string
 		wantCount    int
-		wantMessages []string
+		wantMessages map[string][]string
 	}{
 		{
-			name:        "multiple violations",
+			name:         "empty URIs",
+			uris:         []string{},
+			fixtureFile:  "packwerk_output_empty.txt",
+			wantCount:    0,
+			wantMessages: map[string][]string{},
+		},
+		{
+			name:        "single URI with violations",
+			uris:        []string{"file:///root/lib/sample.rb"},
 			fixtureFile: "packwerk_output_multiple.txt",
 			wantCount:   2,
-			wantMessages: []string{
-				fullMessage,
-				fullMessage,
+			wantMessages: map[string][]string{
+				"file:///root/lib/sample.rb": {
+					fullMessage,
+					fullMessage,
+				},
 			},
 		},
 		{
-			name:         "empty output",
+			name:        "multiple URIs with violations",
+			uris:        []string{"file:///root/lib/sample.rb", "file:///root/lib/another.rb"},
+			fixtureFile: "packwerk_output_multiple.txt",
+			wantCount:   4, // 2 violations per URI
+			wantMessages: map[string][]string{
+				"file:///root/lib/sample.rb": {
+					fullMessage,
+					fullMessage,
+				},
+				"file:///root/lib/another.rb": {
+					fullMessage,
+					fullMessage,
+				},
+			},
+		},
+		{
+			name:         "multiple URIs with empty output",
+			uris:         []string{"file:///root/lib/sample.rb", "file:///root/lib/another.rb"},
 			fixtureFile:  "packwerk_output_empty.txt",
 			wantCount:    0,
-			wantMessages: nil,
+			wantMessages: map[string][]string{},
 		},
 	}
 
@@ -68,28 +114,32 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 				t.Fatalf("failed to read fixture: %v", err)
 			}
 			diagnoser := NewDiagnoseFile(repo, &fakePackwerkRunner{output: string(data)})
-			diagnosticsByFile, err := diagnoser.Diagnose(context.Background(), "file:///root/lib/sample.rb")
+			diagnosticsByFile, err := diagnoser.Diagnose(context.Background(), tt.uris...)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Get diagnostics for the requested URI
-			uri := "file:///root/lib/sample.rb"
-			diagnostics, ok := diagnosticsByFile[uri]
-			if !ok && tt.wantCount > 0 {
-				t.Fatalf("expected diagnostics for URI %s, but got none", uri)
+			totalDiagnostics := 0
+			for _, diagnostics := range diagnosticsByFile {
+				totalDiagnostics += len(diagnostics)
 			}
-			if !ok {
-				diagnostics = []domain.Diagnostic{}
+			if totalDiagnostics != tt.wantCount {
+				t.Fatalf("expected %d diagnostics, got %d", tt.wantCount, totalDiagnostics)
 			}
 
-			if len(diagnostics) != tt.wantCount {
-				t.Fatalf("expected %d diagnostics, got %d", tt.wantCount, len(diagnostics))
-			}
-			for i, wantMsg := range tt.wantMessages {
-				gotMsg := diagnostics[i].Message
-				if strings.TrimRight(gotMsg, "\n") != strings.TrimRight(wantMsg, "\n") {
-					t.Errorf("diagnostic %d: want message\n--- want ---\n%q\n--- got ---\n%q", i, wantMsg, gotMsg)
+			for uri, wantMsgs := range tt.wantMessages {
+				gotDiagnostics, ok := diagnosticsByFile[uri]
+				if !ok {
+					t.Fatalf("expected diagnostics for URI %s, but got none", uri)
+				}
+				if len(gotDiagnostics) != len(wantMsgs) {
+					t.Fatalf("for URI %s, expected %d diagnostics, got %d", uri, len(wantMsgs), len(gotDiagnostics))
+				}
+				for i, wantMsg := range wantMsgs {
+					gotMsg := gotDiagnostics[i].Message
+					if strings.TrimRight(gotMsg, "\n") != strings.TrimRight(wantMsg, "\n") {
+						t.Errorf("diagnostic %d for URI %s: want message\n--- want ---\n%q\n--- got ---\n%q", i, uri, wantMsg, gotMsg)
+					}
 				}
 			}
 		})

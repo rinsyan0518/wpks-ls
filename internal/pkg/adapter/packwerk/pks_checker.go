@@ -18,11 +18,20 @@ func (c *PksChecker) IsAvailable(rootPath string) bool {
 	return pksErr == nil
 }
 
-func (c *PksChecker) RunCheck(context context.Context, rootPath, path string) ([]domain.Violation, error) {
+func (c *PksChecker) RunCheck(context context.Context, rootPath string, paths ...string) ([]domain.Violation, error) {
 	if !c.IsAvailable(rootPath) {
 		return nil, CommandNotFoundError{"pks"}
 	}
-	cmd := exec.CommandContext(context, "pks", "-e", "check", "--", path)
+
+	if len(paths) == 0 {
+		return []domain.Violation{}, nil
+	}
+
+	// pks can accept multiple paths
+	args := []string{"-e", "check", "--"}
+	args = append(args, paths...)
+
+	cmd := exec.CommandContext(context, "pks", args...)
 	cmd.Dir = rootPath
 	out, _ := cmd.Output()
 	return NewPackwerkOutput(string(out)).Parse(), nil
