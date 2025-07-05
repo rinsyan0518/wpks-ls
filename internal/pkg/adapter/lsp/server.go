@@ -62,24 +62,7 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 		return nil, err
 	}
 
-	serverVersion := serverVersion
-	openClose := true
-	change := protocol.TextDocumentSyncKindIncremental
-	save := true
-
-	return protocol.InitializeResult{
-		Capabilities: protocol.ServerCapabilities{
-			TextDocumentSync: &protocol.TextDocumentSyncOptions{
-				OpenClose: &openClose,
-				Change:    &change,
-				Save:      &save,
-			},
-		},
-		ServerInfo: &protocol.InitializeResultServerInfo{
-			Name:    serverName,
-			Version: &serverVersion,
-		},
-	}, nil
+	return NewInitializeResult(serverName, serverVersion), nil
 }
 
 func (s *Server) onShutdown(ctx *glsp.Context) error {
@@ -144,59 +127,31 @@ func (s *Server) runWithDiagnoseProgress(
 	diagnoseFunc func(ctx context.Context) (map[string][]domain.Diagnostic, error),
 ) {
 	s.jobQueue.Enqueue(key, func(ctx context.Context) {
+		// Create a notifier from the glsp context
+		notifier := NewContextNotifier(glspCtx)
+
 		// Generate a unique progress token for this operation
-		token := protocol.ProgressToken{Value: uuid.New().String()}
+		token := uuid.New().String()
 		// Request the client to create a progress token
-		glspCtx.Notify(protocol.ServerWindowWorkDoneProgressCreate, protocol.WorkDoneProgressCreateParams{Token: token})
+		NotifyServerWindowWorkDoneProgressCreate(notifier, token)
 
 		// Notify the client that the progress has begun
-		cancellable := false
-		glspCtx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
-			Token: token,
-			Value: &protocol.WorkDoneProgressBegin{
-				Kind:        "begin",
-				Title:       title,
-				Cancellable: &cancellable,
-			},
-		})
+		NotifyBeginProgress(notifier, token, title, false)
 
 		// Optionally notify intermediate progress (e.g., 50%)
-		message := "Diagnosing..."
-		percentage := protocol.UInteger(50)
-		glspCtx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
-			Token: token,
-			Value: &protocol.WorkDoneProgressReport{
-				Kind:       "report",
-				Message:    &message,
-				Percentage: &percentage,
-			},
-		})
+		NotifyReportProgress(notifier, token, "Diagnosing...", 50)
 
 		// Run the actual diagnose function
 		results, err := diagnoseFunc(ctx)
 		if err == nil {
 			for uri, diagnostics := range results {
-				lspDiagnostics := MapDiagnostics(diagnostics)
-				glspCtx.Notify(protocol.ServerTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
-					URI:         protocol.DocumentUri(uri),
-					Diagnostics: lspDiagnostics,
-				})
+				NotifyPublishDiagnostics(notifier, uri, diagnostics)
 			}
 		} else {
-			glspCtx.Notify(protocol.ServerWindowLogMessage, &protocol.LogMessageParams{
-				Type:    protocol.MessageTypeError,
-				Message: "Error diagnosing file: " + err.Error(),
-			})
+			NotifyErrorLogMessage(notifier, "Error diagnosing file: "+err.Error())
 		}
 
 		// Notify the client that the progress has ended
-		message = "Diagnosis complete"
-		glspCtx.Notify(protocol.MethodProgress, &protocol.ProgressParams{
-			Token: token,
-			Value: &protocol.WorkDoneProgressEnd{
-				Kind:    "end",
-				Message: &message,
-			},
-		})
+		NotifyEndProgress(notifier, token, "Diagnosis complete")
 	})
 }
