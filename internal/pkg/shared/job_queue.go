@@ -47,7 +47,7 @@ const (
 
 // MessageSerialJobQueue is a serial job queue that processes messages by topic.
 type MessageSerialJobQueue struct {
-	queue    chan topicMessage
+	queue    *RingBuffer[topicMessage]
 	handlers map[string]MessageJobFunc
 	mu       sync.Mutex
 	state    atomic.Int32
@@ -57,7 +57,7 @@ type MessageSerialJobQueue struct {
 
 func NewMessageSerialJobQueue(buffer int) *MessageSerialJobQueue {
 	jq := &MessageSerialJobQueue{
-		queue:    make(chan topicMessage, buffer),
+		queue:    NewRingBuffer[topicMessage](buffer),
 		handlers: make(map[string]MessageJobFunc),
 	}
 	return jq
@@ -83,12 +83,21 @@ func (jq *MessageSerialJobQueue) Enqueue(topic string, message Message) {
 		panic("queue not running")
 	}
 	jq.wg.Add(1)
-	jq.queue <- topicMessage{topic, message}
+	if !jq.queue.Put(topicMessage{topic, message}) {
+		jq.wg.Done() // Decrease counter if put failed
+		panic("failed to enqueue message")
+	}
 }
 
 // worker executes jobs from the queue. If draining, jobs are skipped.
 func (jq *MessageSerialJobQueue) worker(ctx context.Context) {
-	for tm := range jq.queue {
+	for {
+		tm, ok := jq.queue.Get()
+		if !ok {
+			// Queue is closed and empty
+			break
+		}
+
 		jq.mu.Lock()
 		handler, exists := jq.handlers[tm.topic]
 		jq.mu.Unlock()
@@ -124,7 +133,7 @@ func (jq *MessageSerialJobQueue) Close() {
 	}
 
 	jq.state.Store(int32(stateDraining))
-	close(jq.queue)
+	jq.queue.Close()
 	jq.cancel()
 	jq.wg.Wait()
 	jq.state.Store(int32(stateClosed))
