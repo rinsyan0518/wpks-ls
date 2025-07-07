@@ -112,6 +112,7 @@ func TestMessageSerialJobQueue_BasicOperation(t *testing.T) {
 	message := Message{
 		GLSPContext: mockGLSPCtx,
 		URI:         "file:///test/file.rb",
+		Type:        DiagnoseFile,
 	}
 
 	queue.Enqueue("test-topic", message)
@@ -151,8 +152,8 @@ func TestMessageSerialJobQueue_MultipleSameTopicExecution(t *testing.T) {
 	queue.Start(ctx)
 	defer queue.Close()
 
-	message1 := Message{URI: "file:///test/file1.rb"}
-	message2 := Message{URI: "file:///test/file2.rb"}
+	message1 := Message{URI: "file:///test/file1.rb", Type: DiagnoseFile}
+	message2 := Message{URI: "file:///test/file2.rb", Type: DiagnoseFile}
 
 	// Enqueue same topic multiple times - all should be executed now
 	queue.Enqueue("same-topic", message1)
@@ -194,8 +195,8 @@ func TestMessageSerialJobQueue_MultipleTopics(t *testing.T) {
 	defer queue.Close()
 
 	// Enqueue different topics
-	queue.Enqueue("topic-a", Message{URI: "file:///test/fileA.rb"})
-	queue.Enqueue("topic-b", Message{URI: "file:///test/fileB.rb"})
+	queue.Enqueue("topic-a", Message{URI: "file:///test/fileA.rb", Type: DiagnoseFile})
+	queue.Enqueue("topic-b", Message{URI: "file:///test/fileB.rb", Type: DiagnoseAll})
 
 	// Wait for processing
 	time.Sleep(100 * time.Millisecond)
@@ -221,7 +222,7 @@ func TestMessageSerialJobQueue_UnregisteredTopic(t *testing.T) {
 	defer queue.Close()
 
 	// Enqueue message for unregistered topic (should not panic)
-	message := Message{URI: "file:///test/file.rb"}
+	message := Message{URI: "file:///test/file.rb", Type: DiagnoseFile}
 	queue.Enqueue("unregistered-topic", message)
 
 	// Wait a bit to ensure no crash

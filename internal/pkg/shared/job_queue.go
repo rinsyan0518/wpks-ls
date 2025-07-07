@@ -10,10 +10,19 @@ import (
 	"github.com/tliron/glsp"
 )
 
+// DiagnoseType represents the type of diagnosis to perform
+type DiagnoseType int
+
+const (
+	DiagnoseFile DiagnoseType = iota // Diagnose a single file
+	DiagnoseAll                      // Diagnose all files
+)
+
 // Message represents a message containing glsp.Context and URI
 type Message struct {
 	GLSPContext *glsp.Context
 	URI         string
+	Type        DiagnoseType
 	// Additional fields can be added here as needed
 }
 

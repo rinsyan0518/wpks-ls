@@ -84,7 +84,7 @@ func BenchmarkMessageJobQueue_EnqueueProcess(b *testing.B) {
 	queue.Start(ctx)
 	defer queue.Close()
 
-	message := Message{URI: "file:///bench.rb"}
+	message := Message{URI: "file:///bench.rb", Type: DiagnoseFile}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -168,12 +168,12 @@ func TestRingBuffer_WithTopicMessage(t *testing.T) {
 
 	msg1 := topicMessage{
 		topic:   "test-topic",
-		message: Message{URI: "file:///test.rb"},
+		message: Message{URI: "file:///test.rb", Type: DiagnoseFile},
 	}
 
 	msg2 := topicMessage{
 		topic:   "another-topic",
-		message: Message{URI: "file:///another.rb"},
+		message: Message{URI: "file:///another.rb", Type: DiagnoseAll},
 	}
 
 	// Put messages

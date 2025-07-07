@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/in"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/shared"
 	"github.com/tliron/glsp"
@@ -40,27 +41,47 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 
 // registerHandlers registers handlers for different message topics
 func (s *Server) registerHandlers() {
-	// Handler for single file diagnosis
-	s.messageQueue.RegisterHandler("diagnose-file", s.handleDiagnoseFile)
-
-	// Handler for all files diagnosis
-	s.messageQueue.RegisterHandler("diagnose-all", s.handleDiagnoseAll)
+	// Unified handler for all diagnosis operations
+	s.messageQueue.RegisterHandler("diagnose", s.handleDiagnose)
 }
 
-// handleDiagnoseFile processes diagnosis for a single file
-func (s *Server) handleDiagnoseFile(ctx context.Context, msg shared.Message) {
+// handleDiagnose processes diagnosis operations based on message type
+func (s *Server) handleDiagnose(ctx context.Context, msg shared.Message) {
 	notifier := NewContextNotifier(msg.GLSPContext)
 
 	// Generate unique progress token
 	token := uuid.New().String()
 	NotifyServerWindowWorkDoneProgressCreate(notifier, token)
-	NotifyBeginProgress(notifier, token, "Diagnosing file...", false)
-	NotifyReportProgress(notifier, token, "Diagnosing...", 50)
 
-	// Run diagnosis
-	results, err := s.diagnoseFile.Diagnose(ctx, msg.URI)
+	var title string
+	var results map[string][]domain.Diagnostic
+	var err error
+
+	switch msg.Type {
+	case shared.DiagnoseFile:
+		title = "Diagnosing file..."
+		NotifyBeginProgress(notifier, token, title, false)
+		NotifyReportProgress(notifier, token, "Diagnosing...", 50)
+
+		// Run diagnosis for single file
+		results, err = s.diagnoseFile.Diagnose(ctx, msg.URI)
+
+	case shared.DiagnoseAll:
+		title = "Diagnosing all files..."
+		NotifyBeginProgress(notifier, token, title, false)
+		NotifyReportProgress(notifier, token, "Diagnosing...", 50)
+
+		// Run diagnosis for all files
+		results, err = s.diagnoseFile.DiagnoseAll(ctx)
+
+	default:
+		NotifyErrorLogMessage(notifier, "Unknown diagnosis type")
+		return
+	}
+
+	// Handle results
 	if err != nil {
-		NotifyErrorLogMessage(notifier, "Error diagnosing file: "+err.Error())
+		NotifyErrorLogMessage(notifier, "Error during diagnosis: "+err.Error())
 	} else {
 		for uri, diagnostics := range results {
 			NotifyPublishDiagnostics(notifier, uri, diagnostics)
@@ -68,28 +89,6 @@ func (s *Server) handleDiagnoseFile(ctx context.Context, msg shared.Message) {
 	}
 
 	NotifyEndProgress(notifier, token, "Diagnosis complete")
-}
-
-// handleDiagnoseAll processes diagnosis for all files
-func (s *Server) handleDiagnoseAll(ctx context.Context, msg shared.Message) {
-	notifier := NewContextNotifier(msg.GLSPContext)
-
-	token := uuid.New().String()
-	NotifyServerWindowWorkDoneProgressCreate(notifier, token)
-	NotifyBeginProgress(notifier, token, "Diagnosing all files...", false)
-	NotifyReportProgress(notifier, token, "Diagnosing...", 50)
-
-	// Run diagnosis for all files
-	results, err := s.diagnoseFile.DiagnoseAll(ctx)
-	if err != nil {
-		NotifyErrorLogMessage(notifier, "Error diagnosing all files: "+err.Error())
-	} else {
-		for uri, diagnostics := range results {
-			NotifyPublishDiagnostics(notifier, uri, diagnostics)
-		}
-	}
-
-	NotifyEndProgress(notifier, token, "All files diagnosed")
 }
 
 // Start runs the LSP server loop.
@@ -135,8 +134,9 @@ func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedPa
 	message := shared.Message{
 		GLSPContext: ctx,
 		URI:         "", // Not applicable for "diagnose all"
+		Type:        shared.DiagnoseAll,
 	}
-	s.messageQueue.Enqueue("diagnose-all", message)
+	s.messageQueue.Enqueue("diagnose", message)
 
 	return nil
 }
@@ -147,8 +147,9 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 	message := shared.Message{
 		GLSPContext: ctx,
 		URI:         uri,
+		Type:        shared.DiagnoseFile,
 	}
-	s.messageQueue.Enqueue("diagnose-file", message)
+	s.messageQueue.Enqueue("diagnose", message)
 	return nil
 }
 
@@ -158,8 +159,9 @@ func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocume
 	message := shared.Message{
 		GLSPContext: ctx,
 		URI:         uri,
+		Type:        shared.DiagnoseFile,
 	}
-	s.messageQueue.Enqueue("diagnose-file", message)
+	s.messageQueue.Enqueue("diagnose", message)
 	return nil
 }
 
