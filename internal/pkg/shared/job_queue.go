@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/tliron/glsp"
 )
@@ -26,12 +27,19 @@ type Message struct {
 	// Additional fields can be added here as needed
 }
 
-// MessageJobFunc is a job function that processes a message.
-type MessageJobFunc func(ctx context.Context, msg Message)
+// MessageJobFunc is a job function that processes multiple messages.
+type MessageJobFunc func(ctx context.Context, msgs []Message)
+
+// BatchConfig represents configuration for batch processing per topic
+type BatchConfig struct {
+	Size    int  // Maximum batch size
+	Enabled bool // Whether batching is enabled for this topic
+}
 
 // MessageJobQueue is a job queue that processes messages by topic.
 type MessageJobQueue interface {
 	RegisterHandler(topic string, handler MessageJobFunc)
+	SetBatchConfig(topic string, config BatchConfig)
 	Enqueue(topic string, message Message)
 	Start(ctx context.Context)
 	Close()
@@ -56,20 +64,45 @@ const (
 
 // MessageSerialJobQueue is a serial job queue that processes messages by topic.
 type MessageSerialJobQueue struct {
-	queue    *RingBuffer[topicMessage]
-	handlers map[string]MessageJobFunc
-	mu       sync.Mutex
-	state    atomic.Int32
-	wg       sync.WaitGroup
-	cancel   context.CancelFunc
+	queue        *RingBuffer[topicMessage]
+	handlers     map[string]MessageJobFunc
+	batchConfigs map[string]BatchConfig
+	mu           sync.Mutex
+	state        atomic.Int32
+	wg           sync.WaitGroup
+	cancel       context.CancelFunc
 }
 
 func NewMessageSerialJobQueue(buffer int) *MessageSerialJobQueue {
 	jq := &MessageSerialJobQueue{
-		queue:    NewRingBuffer[topicMessage](buffer),
-		handlers: make(map[string]MessageJobFunc),
+		queue:        NewRingBuffer[topicMessage](buffer),
+		handlers:     make(map[string]MessageJobFunc),
+		batchConfigs: make(map[string]BatchConfig),
 	}
 	return jq
+}
+
+// SetBatchConfig sets batch configuration for a specific topic
+func (jq *MessageSerialJobQueue) SetBatchConfig(topic string, config BatchConfig) {
+	jq.mu.Lock()
+	defer jq.mu.Unlock()
+	jq.batchConfigs[topic] = config
+}
+
+// getBatchConfig returns batch configuration for a topic (with defaults)
+func (jq *MessageSerialJobQueue) getBatchConfig(topic string) BatchConfig {
+	jq.mu.Lock()
+	defer jq.mu.Unlock()
+
+	if config, exists := jq.batchConfigs[topic]; exists {
+		return config
+	}
+
+	// Default configuration: no batching (immediate processing)
+	return BatchConfig{
+		Size:    1,
+		Enabled: false,
+	}
 }
 
 // RegisterHandler registers a handler function for a specific topic
@@ -98,40 +131,90 @@ func (jq *MessageSerialJobQueue) Enqueue(topic string, message Message) {
 	}
 }
 
-// worker executes jobs from the queue. If draining, jobs are skipped.
+// worker executes jobs from the queue with batch processing.
 func (jq *MessageSerialJobQueue) worker(ctx context.Context) {
-	for {
-		tm, ok := jq.queue.Get()
-		if !ok {
-			// Queue is closed and empty
-			break
+	batches := make(map[string][]Message) // topic -> messages
+
+	// processAllBatches processes all accumulated batches
+	processAllBatches := func() {
+		for topic, messages := range batches {
+			if len(messages) > 0 {
+				jq.processBatch(ctx, topic, messages)
+			}
 		}
-
-		jq.mu.Lock()
-		handler, exists := jq.handlers[tm.topic]
-		jq.mu.Unlock()
-
-		if jq.state.Load() != int32(stateRunning) {
-			jq.wg.Done()
-			continue
-		}
-
-		if !exists {
-			fmt.Fprintf(os.Stderr, "no handler registered for topic: %s\n", tm.topic)
-			jq.wg.Done()
-			continue
-		}
-
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					fmt.Fprintf(os.Stderr, "job panic for topic %s: %v\n", tm.topic, r)
-				}
-				jq.wg.Done()
-			}()
-			handler(ctx, tm.message)
-		}()
+		batches = make(map[string][]Message) // Reset batches
 	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Context was cancelled, process remaining batches then exit
+			processAllBatches()
+			return
+
+		default:
+			// Try to get a message (non-blocking)
+			tm, ok := jq.queue.TryGet()
+			if !ok {
+				// No message available, check if queue is closed
+				if jq.queue.IsClosed() && jq.queue.IsEmpty() {
+					// Queue is closed and empty, process remaining batches then exit
+					processAllBatches()
+					return
+				}
+				// No message but queue is still open, wait a bit
+				time.Sleep(time.Millisecond)
+				continue
+			}
+
+			// Add message to appropriate batch
+			batches[tm.topic] = append(batches[tm.topic], tm.message)
+
+			// Check if batch should be processed now
+			config := jq.getBatchConfig(tm.topic)
+			if !config.Enabled || len(batches[tm.topic]) >= config.Size {
+				jq.processBatch(ctx, tm.topic, batches[tm.topic])
+				delete(batches, tm.topic)
+			}
+		}
+	}
+}
+
+// processBatch processes a batch of messages for a specific topic
+func (jq *MessageSerialJobQueue) processBatch(ctx context.Context, topic string, messages []Message) {
+	jq.mu.Lock()
+	handler, exists := jq.handlers[topic]
+	jq.mu.Unlock()
+
+	if jq.state.Load() != int32(stateRunning) {
+		// Mark all messages as done
+		for range messages {
+			jq.wg.Done()
+		}
+		return
+	}
+
+	if !exists {
+		fmt.Fprintf(os.Stderr, "no handler registered for topic: %s\n", topic)
+		// Mark all messages as done
+		for range messages {
+			jq.wg.Done()
+		}
+		return
+	}
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "job panic for topic %s: %v\n", topic, r)
+			}
+			// Mark all messages as done
+			for range messages {
+				jq.wg.Done()
+			}
+		}()
+		handler(ctx, messages)
+	}()
 }
 
 // Close sets draining and closes the queue. Jobs remaining in the queue will not be executed.

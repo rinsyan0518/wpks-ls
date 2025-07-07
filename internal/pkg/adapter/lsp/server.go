@@ -45,49 +45,61 @@ func (s *Server) registerHandlers() {
 	s.messageQueue.RegisterHandler("diagnose", s.handleDiagnose)
 }
 
-// handleDiagnose processes diagnosis operations based on message type
-func (s *Server) handleDiagnose(ctx context.Context, msg shared.Message) {
-	notifier := NewContextNotifier(msg.GLSPContext)
+// handleDiagnose processes diagnosis operations for multiple messages with batch processing
+func (s *Server) handleDiagnose(ctx context.Context, msgs []shared.Message) {
+	if len(msgs) == 0 {
+		return
+	}
+	lastMsg := msgs[len(msgs)-1]
+	notifier := NewContextNotifier(lastMsg.GLSPContext)
 
-	// Generate unique progress token
 	token := uuid.New().String()
 	NotifyServerWindowWorkDoneProgressCreate(notifier, token)
 
-	var title string
-	var results map[string][]domain.Diagnostic
-	var err error
-
-	switch msg.Type {
-	case shared.DiagnoseFile:
-		title = "Diagnosing file..."
-		NotifyBeginProgress(notifier, token, title, false)
-		NotifyReportProgress(notifier, token, "Diagnosing...", 50)
-
-		// Run diagnosis for single file
-		results, err = s.diagnoseFile.Diagnose(ctx, msg.URI)
-
-	case shared.DiagnoseAll:
-		title = "Diagnosing all files..."
-		NotifyBeginProgress(notifier, token, title, false)
-		NotifyReportProgress(notifier, token, "Diagnosing...", 50)
-
-		// Run diagnosis for all files
-		results, err = s.diagnoseFile.DiagnoseAll(ctx)
-
-	default:
-		NotifyErrorLogMessage(notifier, "Unknown diagnosis type")
-		return
-	}
-
-	// Handle results
-	if err != nil {
-		NotifyErrorLogMessage(notifier, "Error during diagnosis: "+err.Error())
-	} else {
-		for uri, diagnostics := range results {
-			NotifyPublishDiagnostics(notifier, uri, diagnostics)
+	hasAll := false
+	for _, msg := range msgs {
+		if msg.Type == shared.DiagnoseAll {
+			hasAll = true
+			break
 		}
 	}
 
+	var allResults map[string][]domain.Diagnostic
+	var err error
+
+	if hasAll {
+		NotifyBeginProgress(notifier, token, "Diagnosing all files...", false)
+		NotifyReportProgress(notifier, token, "Diagnosing...", 25)
+
+		allResults, err = s.diagnoseFile.DiagnoseAll(ctx)
+	} else {
+		NotifyBeginProgress(notifier, token, "Diagnosing files...", false)
+		NotifyReportProgress(notifier, token, "Diagnosing...", 25)
+
+		uris := make([]string, 0, len(msgs))
+		for _, msg := range msgs {
+			if msg.Type == shared.DiagnoseFile {
+				uris = append(uris, msg.URI)
+			}
+		}
+
+		allResults, err = s.diagnoseFile.Diagnose(ctx, uris...)
+	}
+
+	if err != nil {
+		NotifyErrorLogMessage(notifier, "Error during diagnosis: "+err.Error())
+	} else {
+		NotifyReportProgress(notifier, token, "Diagnosing...", 75)
+
+		for _, msg := range msgs {
+			msgNotifier := NewContextNotifier(msg.GLSPContext)
+			for uri, diagnostics := range allResults {
+				NotifyPublishDiagnostics(msgNotifier, uri, diagnostics)
+			}
+		}
+	}
+
+	NotifyReportProgress(notifier, token, "Diagnosing...", 100)
 	NotifyEndProgress(notifier, token, "Diagnosis complete")
 }
 

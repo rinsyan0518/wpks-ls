@@ -74,8 +74,8 @@ func BenchmarkMessageJobQueue_EnqueueProcess(b *testing.B) {
 	queue := NewMessageSerialJobQueue(1000)
 
 	var processed int
-	handler := func(ctx context.Context, msg Message) {
-		processed++
+	handler := func(ctx context.Context, msgs []Message) {
+		processed += len(msgs)
 	}
 
 	queue.RegisterHandler("bench-topic", handler)
