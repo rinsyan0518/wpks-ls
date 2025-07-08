@@ -69,8 +69,8 @@ type MessageSerialJobQueue struct {
 	batchConfigs map[string]BatchConfig
 	mu           sync.Mutex
 	state        atomic.Int32
-	wg           sync.WaitGroup
 	cancel       context.CancelFunc
+	done         chan struct{} // Signal when worker is done
 }
 
 func NewMessageSerialJobQueue(buffer int) *MessageSerialJobQueue {
@@ -78,6 +78,7 @@ func NewMessageSerialJobQueue(buffer int) *MessageSerialJobQueue {
 		queue:        NewRingBuffer[topicMessage](buffer),
 		handlers:     make(map[string]MessageJobFunc),
 		batchConfigs: make(map[string]BatchConfig),
+		done:         make(chan struct{}),
 	}
 	return jq
 }
@@ -124,32 +125,21 @@ func (jq *MessageSerialJobQueue) Enqueue(topic string, message Message) {
 	if jq.state.Load() != int32(stateRunning) {
 		panic("queue not running")
 	}
-	jq.wg.Add(1)
 	if !jq.queue.Put(topicMessage{topic, message}) {
-		jq.wg.Done() // Decrease counter if put failed
 		panic("failed to enqueue message")
 	}
 }
 
 // worker executes jobs from the queue with batch processing.
 func (jq *MessageSerialJobQueue) worker(ctx context.Context) {
-	batches := make(map[string][]Message) // topic -> messages
+	defer close(jq.done) // Signal completion when worker exits
 
-	// processAllBatches processes all accumulated batches
-	processAllBatches := func() {
-		for topic, messages := range batches {
-			if len(messages) > 0 {
-				jq.processBatch(ctx, topic, messages)
-			}
-		}
-		batches = make(map[string][]Message) // Reset batches
-	}
+	batches := make(map[string][]Message) // topic -> messages
 
 	for {
 		select {
 		case <-ctx.Done():
-			// Context was cancelled, process remaining batches then exit
-			processAllBatches()
+			// Context was cancelled, exit
 			return
 
 		default:
@@ -158,8 +148,7 @@ func (jq *MessageSerialJobQueue) worker(ctx context.Context) {
 			if !ok {
 				// No message available, check if queue is closed
 				if jq.queue.IsClosed() && jq.queue.IsEmpty() {
-					// Queue is closed and empty, process remaining batches then exit
-					processAllBatches()
+					// Queue is closed and empty, exit
 					return
 				}
 				// No message but queue is still open, wait a bit
@@ -187,19 +176,11 @@ func (jq *MessageSerialJobQueue) processBatch(ctx context.Context, topic string,
 	jq.mu.Unlock()
 
 	if jq.state.Load() != int32(stateRunning) {
-		// Mark all messages as done
-		for range messages {
-			jq.wg.Done()
-		}
 		return
 	}
 
 	if !exists {
 		fmt.Fprintf(os.Stderr, "no handler registered for topic: %s\n", topic)
-		// Mark all messages as done
-		for range messages {
-			jq.wg.Done()
-		}
 		return
 	}
 
@@ -208,17 +189,13 @@ func (jq *MessageSerialJobQueue) processBatch(ctx context.Context, topic string,
 			if r := recover(); r != nil {
 				fmt.Fprintf(os.Stderr, "job panic for topic %s: %v\n", topic, r)
 			}
-			// Mark all messages as done
-			for range messages {
-				jq.wg.Done()
-			}
 		}()
 		handler(ctx, messages)
 	}()
 }
 
 // Close sets draining and closes the queue. Jobs remaining in the queue will not be executed.
-// Waits for all running jobs to finish, then sets the state to closed.
+// Waits for worker to finish, then sets the state to closed.
 func (jq *MessageSerialJobQueue) Close() {
 	if jq.state.Load() != int32(stateRunning) {
 		return
@@ -227,7 +204,7 @@ func (jq *MessageSerialJobQueue) Close() {
 	jq.state.Store(int32(stateDraining))
 	jq.queue.Close()
 	jq.cancel()
-	jq.wg.Wait()
+	<-jq.done // Wait for worker to complete
 	jq.state.Store(int32(stateClosed))
 }
 
