@@ -25,7 +25,7 @@ func NewTopicWorker[T any](topic string, handler JobFunc[T], config *WorkerConfi
 	return &TopicWorker[T]{
 		Topic:       topic,
 		queue:       make(chan T, config.QueueSize),
-		batchBuffer: NewRingBuffer[T](config.BatchSize),
+		batchBuffer: NewRingBuffer[T](config.BatchSize * 10),
 		handler:     handler,
 		config:      config,
 		done:        make(chan struct{}),

@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
@@ -58,7 +59,12 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 // registerHandlers registers handlers for different message topics
 func (s *Server) registerHandlers() {
 	// Unified handler for all diagnosis operations
-	s.messageQueue.RegisterTopic("diagnose", s.handleDiagnose)
+	s.messageQueue.RegisterTopic(
+		"diagnose",
+		s.handleDiagnose,
+		task.WithQueueSize(100),
+		task.WithBatchConfig(10, 100*time.Millisecond),
+	)
 }
 
 // handleDiagnose processes diagnosis operations for multiple messages with batch processing
@@ -92,11 +98,17 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []Message) {
 		NotifyBeginProgress(notifier, token, "Diagnosing files...", false)
 		NotifyReportProgress(notifier, token, "Diagnosing...", 25)
 
-		uris := make([]string, 0, len(msgs))
+		// Collect unique URIs to avoid duplicate processing
+		uriSet := make(map[string]struct{})
 		for _, msg := range msgs {
 			if msg.Type == DiagnoseFile {
-				uris = append(uris, msg.URI)
+				uriSet[msg.URI] = struct{}{}
 			}
+		}
+
+		uris := make([]string, 0, len(uriSet))
+		for uri := range uriSet {
+			uris = append(uris, uri)
 		}
 
 		allResults, err = s.diagnoseFile.Diagnose(ctx, uris...)
