@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/port/in"
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/shared"
+	"github.com/rinsyan0518/wpks-ls/internal/task"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	"github.com/tliron/glsp/server"
@@ -17,15 +17,31 @@ const (
 	serverVersion = "0.0.1"
 )
 
+// DiagnoseType represents the type of diagnosis to perform
+type DiagnoseType int
+
+const (
+	DiagnoseFile DiagnoseType = iota // Diagnose a single file
+	DiagnoseAll                      // Diagnose all files
+)
+
+// Message represents a message containing glsp.Context and URI
+type Message struct {
+	GLSPContext *glsp.Context
+	URI         string
+	Type        DiagnoseType
+	// Additional fields can be added here as needed
+}
+
 // Server represents a minimal LSP server.
 type Server struct {
 	diagnoseFile in.DiagnoseFile
 	configure    in.Configure
-	messageQueue shared.MessageJobQueue
+	messageQueue task.Broker[Message]
 }
 
 func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
-	messageQueue := shared.NewMessageSerialJobQueue(100)
+	messageQueue := task.NewMessageBroker[Message]()
 
 	server := &Server{
 		diagnoseFile: diagnoseFile,
@@ -42,11 +58,11 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 // registerHandlers registers handlers for different message topics
 func (s *Server) registerHandlers() {
 	// Unified handler for all diagnosis operations
-	s.messageQueue.RegisterHandler("diagnose", s.handleDiagnose)
+	s.messageQueue.RegisterTopic("diagnose", s.handleDiagnose)
 }
 
 // handleDiagnose processes diagnosis operations for multiple messages with batch processing
-func (s *Server) handleDiagnose(ctx context.Context, msgs []shared.Message) {
+func (s *Server) handleDiagnose(ctx context.Context, msgs []Message) {
 	if len(msgs) == 0 {
 		return
 	}
@@ -58,7 +74,7 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []shared.Message) {
 
 	hasAll := false
 	for _, msg := range msgs {
-		if msg.Type == shared.DiagnoseAll {
+		if msg.Type == DiagnoseAll {
 			hasAll = true
 			break
 		}
@@ -78,7 +94,7 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []shared.Message) {
 
 		uris := make([]string, 0, len(msgs))
 		for _, msg := range msgs {
-			if msg.Type == shared.DiagnoseFile {
+			if msg.Type == DiagnoseFile {
 				uris = append(uris, msg.URI)
 			}
 		}
@@ -143,10 +159,10 @@ func (s *Server) onShutdown(ctx *glsp.Context) error {
 
 func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
 	// Run diagnostics for all files with progress notification
-	message := shared.Message{
+	message := Message{
 		GLSPContext: ctx,
 		URI:         "", // Not applicable for "diagnose all"
-		Type:        shared.DiagnoseAll,
+		Type:        DiagnoseAll,
 	}
 	s.messageQueue.Enqueue("diagnose", message)
 
@@ -156,10 +172,10 @@ func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedPa
 func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 	uri := string(params.TextDocument.URI)
 	// Run diagnostics for the opened file with progress notification
-	message := shared.Message{
+	message := Message{
 		GLSPContext: ctx,
 		URI:         uri,
-		Type:        shared.DiagnoseFile,
+		Type:        DiagnoseFile,
 	}
 	s.messageQueue.Enqueue("diagnose", message)
 	return nil
@@ -168,10 +184,10 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
 	uri := string(params.TextDocument.URI)
 	// Run diagnostics for the saved file with progress notification
-	message := shared.Message{
+	message := Message{
 		GLSPContext: ctx,
 		URI:         uri,
-		Type:        shared.DiagnoseFile,
+		Type:        DiagnoseFile,
 	}
 	s.messageQueue.Enqueue("diagnose", message)
 	return nil
