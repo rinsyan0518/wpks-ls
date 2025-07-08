@@ -115,7 +115,7 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []Message) {
 	}
 
 	if err != nil {
-		NotifyErrorLogMessage(notifier, "Error during diagnosis: "+err.Error())
+		NotifyErrorLogMessage(notifier, "Error during diagnosis: %v", err)
 	} else {
 		NotifyReportProgress(notifier, token, "Diagnosing...", 75)
 

@@ -1,6 +1,8 @@
 package lsp
 
 import (
+	"fmt"
+
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/domain"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
@@ -120,12 +122,42 @@ func NotifyPublishDiagnostics(notifier Notifier, uri string, diagnostics []domai
 	)
 }
 
-func NotifyErrorLogMessage(notifier Notifier, message string) {
+func NotifyErrorLogMessage(notifier Notifier, format string, args ...any) {
 	notifier.Notify(
 		protocol.ServerWindowLogMessage,
 		protocol.LogMessageParams{
-			Message: message,
+			Message: fmt.Sprintf(format, args...),
 			Type:    protocol.MessageTypeError,
+		},
+	)
+}
+
+func NotifyWarningLogMessage(notifier Notifier, format string, args ...any) {
+	notifier.Notify(
+		protocol.ServerWindowLogMessage,
+		protocol.LogMessageParams{
+			Message: fmt.Sprintf(format, args...),
+			Type:    protocol.MessageTypeWarning,
+		},
+	)
+}
+
+func NotifyInfoLogMessage(notifier Notifier, format string, args ...any) {
+	notifier.Notify(
+		protocol.ServerWindowLogMessage,
+		protocol.LogMessageParams{
+			Message: fmt.Sprintf(format, args...),
+			Type:    protocol.MessageTypeInfo,
+		},
+	)
+}
+
+func NotifyLogMessage(notifier Notifier, format string, args ...any) {
+	notifier.Notify(
+		protocol.ServerWindowLogMessage,
+		protocol.LogMessageParams{
+			Message: fmt.Sprintf(format, args...),
+			Type:    protocol.MessageTypeLog,
 		},
 	)
 }

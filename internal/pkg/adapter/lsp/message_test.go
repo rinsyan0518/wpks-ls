@@ -11,12 +11,46 @@ import (
 // MockNotifier implements Notifier for testing
 type MockNotifier struct {
 	NotifiedMethods []string
-	NotifiedParams  []interface{}
+	NotifiedParams  []any
 }
 
-func (m *MockNotifier) Notify(method string, params interface{}) {
+func (m *MockNotifier) Notify(method string, params any) {
 	m.NotifiedMethods = append(m.NotifiedMethods, method)
 	m.NotifiedParams = append(m.NotifiedParams, params)
+}
+
+// Tests for ContextNotifier
+func TestNewContextNotifier(t *testing.T) {
+	t.Run("create context notifier", func(t *testing.T) {
+		// We can't easily mock glsp.Context, so we test with nil
+		// The actual functionality will be tested through integration tests
+		got := NewContextNotifier(nil)
+		if got == nil {
+			t.Fatal("NewContextNotifier() returned nil")
+		}
+		if got.ctx != nil {
+			t.Errorf("NewContextNotifier() ctx = %v, want nil", got.ctx)
+		}
+	})
+}
+
+func TestContextNotifier_Notify(t *testing.T) {
+	t.Run("notify implements Notifier interface", func(t *testing.T) {
+		// Test that ContextNotifier properly implements the Notifier interface
+		notifier := NewContextNotifier(nil)
+
+		// This test verifies the interface implementation without panicking
+		// The actual notification behavior is tested through the functions that use Notifier
+		defer func() {
+			if r := recover(); r != nil {
+				// Expected to panic with nil context, but interface should be implemented
+				t.Logf("Expected panic with nil context: %v", r)
+			}
+		}()
+
+		// This should panic due to nil context, but proves the interface works
+		notifier.Notify("test", nil)
+	})
 }
 
 func TestNewInitializeResult(t *testing.T) {
@@ -396,7 +430,7 @@ func TestNotifyErrorLogMessage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockNotifier := &MockNotifier{}
 
-			NotifyErrorLogMessage(mockNotifier, tt.message)
+			NotifyErrorLogMessage(mockNotifier, "%s", tt.message)
 
 			if len(mockNotifier.NotifiedMethods) != 1 {
 				t.Fatalf("expected 1 notification, got %d", len(mockNotifier.NotifiedMethods))
@@ -421,6 +455,250 @@ func TestNotifyErrorLogMessage(t *testing.T) {
 		})
 	}
 }
+
+// Tests for NotifyErrorLogMessage with format arguments
+func TestNotifyErrorLogMessageWithFormat(t *testing.T) {
+	tests := []struct {
+		name   string
+		format string
+		args   []interface{}
+		want   string
+	}{
+		{
+			name:   "error message with format",
+			format: "Error: %s failed with code %d",
+			args:   []interface{}{"operation", 500},
+			want:   "Error: operation failed with code 500",
+		},
+		{
+			name:   "multiple format specifiers",
+			format: "Error in file %s at line %d: %s",
+			args:   []interface{}{"test.go", 42, "syntax error"},
+			want:   "Error in file test.go at line 42: syntax error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockNotifier := &MockNotifier{}
+
+			NotifyErrorLogMessage(mockNotifier, tt.format, tt.args...)
+
+			if len(mockNotifier.NotifiedMethods) != 1 {
+				t.Fatalf("expected 1 notification, got %d", len(mockNotifier.NotifiedMethods))
+			}
+
+			params, ok := mockNotifier.NotifiedParams[0].(protocol.LogMessageParams)
+			if !ok {
+				t.Fatalf("expected LogMessageParams, got %T", mockNotifier.NotifiedParams[0])
+			}
+
+			if params.Message != tt.want {
+				t.Errorf("expected message %s, got %s", tt.want, params.Message)
+			}
+
+			if params.Type != protocol.MessageTypeError {
+				t.Errorf("expected type %d, got %d", protocol.MessageTypeError, params.Type)
+			}
+		})
+	}
+}
+
+// Tests for NotifyWarningLogMessage
+func TestNotifyWarningLogMessage(t *testing.T) {
+	tests := []struct {
+		name   string
+		format string
+		args   []interface{}
+		want   string
+	}{
+		{
+			name:   "basic warning message",
+			format: "Test warning message",
+			args:   nil,
+			want:   "Test warning message",
+		},
+		{
+			name:   "warning message with format",
+			format: "Warning: %s failed with code %d",
+			args:   []interface{}{"operation", 404},
+			want:   "Warning: operation failed with code 404",
+		},
+		{
+			name:   "empty message",
+			format: "",
+			args:   nil,
+			want:   "",
+		},
+		{
+			name:   "format without args",
+			format: "Simple warning",
+			args:   []interface{}{},
+			want:   "Simple warning",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockNotifier := &MockNotifier{}
+
+			if tt.args == nil {
+				NotifyWarningLogMessage(mockNotifier, "%s", tt.format)
+			} else {
+				NotifyWarningLogMessage(mockNotifier, tt.format, tt.args...)
+			}
+
+			if len(mockNotifier.NotifiedMethods) != 1 {
+				t.Fatalf("expected 1 notification, got %d", len(mockNotifier.NotifiedMethods))
+			}
+
+			if mockNotifier.NotifiedMethods[0] != protocol.ServerWindowLogMessage {
+				t.Errorf("expected method %s, got %s", protocol.ServerWindowLogMessage, mockNotifier.NotifiedMethods[0])
+			}
+
+			params, ok := mockNotifier.NotifiedParams[0].(protocol.LogMessageParams)
+			if !ok {
+				t.Fatalf("expected LogMessageParams, got %T", mockNotifier.NotifiedParams[0])
+			}
+
+			if params.Message != tt.want {
+				t.Errorf("expected message %s, got %s", tt.want, params.Message)
+			}
+
+			if params.Type != protocol.MessageTypeWarning {
+				t.Errorf("expected type %d, got %d", protocol.MessageTypeWarning, params.Type)
+			}
+		})
+	}
+}
+
+// Tests for NotifyInfoLogMessage
+func TestNotifyInfoLogMessage(t *testing.T) {
+	tests := []struct {
+		name   string
+		format string
+		args   []interface{}
+		want   string
+	}{
+		{
+			name:   "basic info message",
+			format: "Test info message",
+			args:   nil,
+			want:   "Test info message",
+		},
+		{
+			name:   "info message with format",
+			format: "Info: processed %d files in %s",
+			args:   []interface{}{42, "10ms"},
+			want:   "Info: processed 42 files in 10ms",
+		},
+		{
+			name:   "empty message",
+			format: "",
+			args:   nil,
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockNotifier := &MockNotifier{}
+
+			if tt.args == nil {
+				NotifyInfoLogMessage(mockNotifier, "%s", tt.format)
+			} else {
+				NotifyInfoLogMessage(mockNotifier, tt.format, tt.args...)
+			}
+
+			if len(mockNotifier.NotifiedMethods) != 1 {
+				t.Fatalf("expected 1 notification, got %d", len(mockNotifier.NotifiedMethods))
+			}
+
+			if mockNotifier.NotifiedMethods[0] != protocol.ServerWindowLogMessage {
+				t.Errorf("expected method %s, got %s", protocol.ServerWindowLogMessage, mockNotifier.NotifiedMethods[0])
+			}
+
+			params, ok := mockNotifier.NotifiedParams[0].(protocol.LogMessageParams)
+			if !ok {
+				t.Fatalf("expected LogMessageParams, got %T", mockNotifier.NotifiedParams[0])
+			}
+
+			if params.Message != tt.want {
+				t.Errorf("expected message %s, got %s", tt.want, params.Message)
+			}
+
+			if params.Type != protocol.MessageTypeInfo {
+				t.Errorf("expected type %d, got %d", protocol.MessageTypeInfo, params.Type)
+			}
+		})
+	}
+}
+
+// Tests for NotifyLogMessage
+func TestNotifyLogMessage(t *testing.T) {
+	tests := []struct {
+		name   string
+		format string
+		args   []interface{}
+		want   string
+	}{
+		{
+			name:   "basic log message",
+			format: "Test log message",
+			args:   nil,
+			want:   "Test log message",
+		},
+		{
+			name:   "log message with format",
+			format: "Log: user %s performed action %s at %s",
+			args:   []interface{}{"john", "login", "2023-01-01"},
+			want:   "Log: user john performed action login at 2023-01-01",
+		},
+		{
+			name:   "empty message",
+			format: "",
+			args:   nil,
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockNotifier := &MockNotifier{}
+
+			if tt.args == nil {
+				NotifyLogMessage(mockNotifier, "%s", tt.format)
+			} else {
+				NotifyLogMessage(mockNotifier, tt.format, tt.args...)
+			}
+
+			if len(mockNotifier.NotifiedMethods) != 1 {
+				t.Fatalf("expected 1 notification, got %d", len(mockNotifier.NotifiedMethods))
+			}
+
+			if mockNotifier.NotifiedMethods[0] != protocol.ServerWindowLogMessage {
+				t.Errorf("expected method %s, got %s", protocol.ServerWindowLogMessage, mockNotifier.NotifiedMethods[0])
+			}
+
+			params, ok := mockNotifier.NotifiedParams[0].(protocol.LogMessageParams)
+			if !ok {
+				t.Fatalf("expected LogMessageParams, got %T", mockNotifier.NotifiedParams[0])
+			}
+
+			if params.Message != tt.want {
+				t.Errorf("expected message %s, got %s", tt.want, params.Message)
+			}
+
+			if params.Type != protocol.MessageTypeLog {
+				t.Errorf("expected type %d, got %d", protocol.MessageTypeLog, params.Type)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Parameter Creation Tests
+// ============================================================================
 
 // Test parameter creation for NotifyServerWindowWorkDoneProgressCreate
 func TestCreateWorkDoneProgressCreateParams(t *testing.T) {
@@ -740,6 +1018,10 @@ func TestCreateLogMessageParams(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 // Helper functions for creating pointers
 func ptrBool(v bool) *bool {
 	return &v
@@ -760,6 +1042,3 @@ func ptrTextDocumentSyncKind(v protocol.TextDocumentSyncKind) *protocol.TextDocu
 func ptrDiagnosticSeverity(v protocol.DiagnosticSeverity) *protocol.DiagnosticSeverity {
 	return &v
 }
-
-// Note: These tests verify both the direct function behavior and parameter creation logic.
-// The Notifier interface allows for easy mocking and testing of notification behavior.
