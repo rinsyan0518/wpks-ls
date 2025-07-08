@@ -1,7 +1,6 @@
-package shared
+package task
 
 import (
-	"context"
 	"sync"
 	"testing"
 )
@@ -70,24 +69,18 @@ func BenchmarkRingBuffer_ConcurrentPutGet(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkMessageJobQueue_EnqueueProcess(b *testing.B) {
-	queue := NewMessageSerialJobQueue(1000)
-
-	var processed int
-	handler := func(ctx context.Context, msgs []Message) {
-		processed += len(msgs)
+func BenchmarkRingBuffer_StructType(b *testing.B) {
+	type testData struct {
+		ID    int
+		Value string
 	}
 
-	queue.RegisterHandler("bench-topic", handler)
-
-	ctx := context.Background()
-	queue.Start(ctx)
-	defer queue.Close()
-
-	message := Message{URI: "file:///bench.rb", Type: DiagnoseFile}
+	rb := NewRingBuffer[testData](1000)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		queue.Enqueue("bench-topic", message)
+		data := testData{ID: i, Value: "test"}
+		rb.TryPut(data)
+		rb.TryGet()
 	}
 }

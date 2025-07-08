@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/shared"
 )
 
 // JobFunc is a generic job function that processes multiple items.
@@ -16,7 +14,7 @@ type JobFunc[T any] func(ctx context.Context, items []T)
 type TopicWorker[T any] struct {
 	Topic       string
 	config      *WorkerConfig
-	batchBuffer *shared.RingBuffer[T]
+	batchBuffer *RingBuffer[T]
 	handler     JobFunc[T]
 	queue       chan T
 	done        chan struct{}
@@ -27,7 +25,7 @@ func NewTopicWorker[T any](topic string, handler JobFunc[T], config *WorkerConfi
 	return &TopicWorker[T]{
 		Topic:       topic,
 		queue:       make(chan T, config.QueueSize),
-		batchBuffer: shared.NewRingBuffer[T](config.BatchSize),
+		batchBuffer: NewRingBuffer[T](config.BatchSize),
 		handler:     handler,
 		config:      config,
 		done:        make(chan struct{}),

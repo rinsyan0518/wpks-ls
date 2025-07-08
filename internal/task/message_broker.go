@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/shared"
 )
 
 // brokerState represents the state of the message broker
@@ -20,16 +18,16 @@ const (
 )
 
 // Broker is a message broker that processes messages by topic.
-type Broker interface {
-	RegisterTopic(topic string, handler JobFunc[shared.Message], opts ...WorkerConfigOption)
-	Enqueue(topic string, message shared.Message)
+type Broker[T any] interface {
+	RegisterTopic(topic string, handler JobFunc[T], opts ...WorkerConfigOption)
+	Enqueue(topic string, message T)
 	Start(ctx context.Context)
 	Close()
 }
 
 // MessageBroker is a topic-based job queue that processes messages using dedicated workers per topic.
-type MessageBroker struct {
-	workers map[string]*TopicWorker[shared.Message]
+type MessageBroker[T any] struct {
+	workers map[string]*TopicWorker[T]
 	mu      sync.RWMutex
 	state   atomic.Int32
 	baseCtx context.Context
@@ -38,14 +36,14 @@ type MessageBroker struct {
 }
 
 // NewMessageBroker creates a new topic-based message broker
-func NewMessageBroker() *MessageBroker {
-	return &MessageBroker{
-		workers: make(map[string]*TopicWorker[shared.Message]),
+func NewMessageBroker[T any]() *MessageBroker[T] {
+	return &MessageBroker[T]{
+		workers: make(map[string]*TopicWorker[T]),
 	}
 }
 
 // RegisterTopic registers a topic with handler and creates worker immediately
-func (b *MessageBroker) RegisterTopic(topic string, handler JobFunc[shared.Message], opts ...WorkerConfigOption) {
+func (b *MessageBroker[T]) RegisterTopic(topic string, handler JobFunc[T], opts ...WorkerConfigOption) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -66,7 +64,7 @@ func (b *MessageBroker) RegisterTopic(topic string, handler JobFunc[shared.Messa
 }
 
 // Start starts the broker and all topic workers
-func (b *MessageBroker) Start(ctx context.Context) {
+func (b *MessageBroker[T]) Start(ctx context.Context) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -80,7 +78,7 @@ func (b *MessageBroker) Start(ctx context.Context) {
 	// Start all existing workers
 	for _, worker := range b.workers {
 		b.wg.Add(1)
-		go func(w *TopicWorker[shared.Message]) {
+		go func(w *TopicWorker[T]) {
 			defer b.wg.Done()
 			w.Run(b.baseCtx)
 		}(worker)
@@ -88,7 +86,7 @@ func (b *MessageBroker) Start(ctx context.Context) {
 }
 
 // Enqueue adds a message to the appropriate topic worker
-func (b *MessageBroker) Enqueue(topic string, message shared.Message) {
+func (b *MessageBroker[T]) Enqueue(topic string, message T) {
 	if b.state.Load() != int32(brokerStateRunning) {
 		panic("broker not running")
 	}
@@ -107,7 +105,7 @@ func (b *MessageBroker) Enqueue(topic string, message shared.Message) {
 }
 
 // Close stops all topic workers and waits for them to finish
-func (b *MessageBroker) Close() {
+func (b *MessageBroker[T]) Close() {
 	if b.state.Load() != int32(brokerStateRunning) {
 		return
 	}
@@ -131,4 +129,4 @@ func (b *MessageBroker) Close() {
 	b.state.Store(int32(brokerStateClosed))
 }
 
-var _ Broker = (*MessageBroker)(nil)
+var _ Broker[any] = (*MessageBroker[any])(nil)

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/rinsyan0518/wpks-ls/internal/task"
 	"github.com/tliron/glsp"
 )
 
@@ -64,7 +65,7 @@ const (
 
 // MessageSerialJobQueue is a serial job queue that processes messages by topic.
 type MessageSerialJobQueue struct {
-	queue        *RingBuffer[topicMessage]
+	queue        *task.RingBuffer[topicMessage]
 	handlers     map[string]MessageJobFunc
 	batchConfigs map[string]BatchConfig
 	mu           sync.Mutex
@@ -75,7 +76,7 @@ type MessageSerialJobQueue struct {
 
 func NewMessageSerialJobQueue(buffer int) *MessageSerialJobQueue {
 	jq := &MessageSerialJobQueue{
-		queue:        NewRingBuffer[topicMessage](buffer),
+		queue:        task.NewRingBuffer[topicMessage](buffer),
 		handlers:     make(map[string]MessageJobFunc),
 		batchConfigs: make(map[string]BatchConfig),
 		done:         make(chan struct{}),

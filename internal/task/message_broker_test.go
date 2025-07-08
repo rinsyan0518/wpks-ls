@@ -6,22 +6,24 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/shared"
-	"github.com/tliron/glsp"
 )
 
 func TestMessageBroker_BasicOperation(t *testing.T) {
-	var receivedMessages []shared.Message
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	var receivedMessages []testData
 	var mu sync.Mutex
 
-	handler := func(ctx context.Context, msgs []shared.Message) {
+	handler := func(ctx context.Context, msgs []testData) {
 		mu.Lock()
 		receivedMessages = append(receivedMessages, msgs...)
 		mu.Unlock()
 	}
 
-	broker := NewMessageBroker()
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("test-topic", handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -31,11 +33,9 @@ func TestMessageBroker_BasicOperation(t *testing.T) {
 	defer broker.Close()
 
 	// Create test message
-	mockGLSPCtx := &glsp.Context{}
-	message := shared.Message{
-		GLSPContext: mockGLSPCtx,
-		URI:         "file:///test.rb",
-		Type:        shared.DiagnoseFile,
+	message := testData{
+		ID:    1,
+		Value: "test",
 	}
 
 	broker.Enqueue("test-topic", message)
@@ -48,16 +48,21 @@ func TestMessageBroker_BasicOperation(t *testing.T) {
 	if len(receivedMessages) != 1 {
 		t.Errorf("Expected 1 message, got %d", len(receivedMessages))
 	}
-	if len(receivedMessages) > 0 && receivedMessages[0].URI != "file:///test.rb" {
-		t.Errorf("Expected URI 'file:///test.rb', got '%s'", receivedMessages[0].URI)
+	if len(receivedMessages) > 0 && receivedMessages[0].Value != "test" {
+		t.Errorf("Expected Value 'test', got '%s'", receivedMessages[0].Value)
 	}
 	mu.Unlock()
 }
 
 func TestMessageBroker_RegisterTopic_DuplicateError(t *testing.T) {
-	handler := func(ctx context.Context, msgs []shared.Message) {}
+	type testData struct {
+		ID    int
+		Value string
+	}
 
-	broker := NewMessageBroker()
+	handler := func(ctx context.Context, msgs []testData) {}
+
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("duplicate-topic", handler)
 
 	// Should panic on duplicate registration
@@ -73,10 +78,15 @@ func TestMessageBroker_RegisterTopic_DuplicateError(t *testing.T) {
 }
 
 func TestMessageBroker_RegisterTopic_AfterStartError(t *testing.T) {
-	handler1 := func(ctx context.Context, msgs []shared.Message) {}
-	handler2 := func(ctx context.Context, msgs []shared.Message) {}
+	type testData struct {
+		ID    int
+		Value string
+	}
 
-	broker := NewMessageBroker()
+	handler1 := func(ctx context.Context, msgs []testData) {}
+	handler2 := func(ctx context.Context, msgs []testData) {}
+
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("topic1", handler1)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -96,7 +106,12 @@ func TestMessageBroker_RegisterTopic_AfterStartError(t *testing.T) {
 }
 
 func TestMessageBroker_Start_NoTopicsError(t *testing.T) {
-	broker := NewMessageBroker()
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	broker := NewMessageBroker[testData]()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -112,11 +127,16 @@ func TestMessageBroker_Start_NoTopicsError(t *testing.T) {
 }
 
 func TestMessageBroker_Enqueue_NotRunningError(t *testing.T) {
-	handler := func(ctx context.Context, msgs []shared.Message) {}
-	broker := NewMessageBroker()
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	handler := func(ctx context.Context, msgs []testData) {}
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("test-topic", handler)
 
-	message := shared.Message{URI: "file:///test.rb", Type: shared.DiagnoseFile}
+	message := testData{ID: 1, Value: "test"}
 
 	// Should panic when enqueuing before start
 	defer func() {
@@ -129,8 +149,13 @@ func TestMessageBroker_Enqueue_NotRunningError(t *testing.T) {
 }
 
 func TestMessageBroker_Enqueue_TopicNotRegisteredError(t *testing.T) {
-	handler := func(ctx context.Context, msgs []shared.Message) {}
-	broker := NewMessageBroker()
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	handler := func(ctx context.Context, msgs []testData) {}
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("registered-topic", handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -139,7 +164,7 @@ func TestMessageBroker_Enqueue_TopicNotRegisteredError(t *testing.T) {
 	broker.Start(ctx)
 	defer broker.Close()
 
-	message := shared.Message{URI: "file:///test.rb", Type: shared.DiagnoseFile}
+	message := testData{ID: 1, Value: "test"}
 
 	// Should panic when enqueuing to unregistered topic
 	defer func() {
@@ -152,23 +177,28 @@ func TestMessageBroker_Enqueue_TopicNotRegisteredError(t *testing.T) {
 }
 
 func TestMessageBroker_MultipleTopics(t *testing.T) {
-	var topicAMessages []shared.Message
-	var topicBMessages []shared.Message
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	var topicAMessages []testData
+	var topicBMessages []testData
 	var mu sync.Mutex
 
-	handlerA := func(ctx context.Context, msgs []shared.Message) {
+	handlerA := func(ctx context.Context, msgs []testData) {
 		mu.Lock()
 		topicAMessages = append(topicAMessages, msgs...)
 		mu.Unlock()
 	}
 
-	handlerB := func(ctx context.Context, msgs []shared.Message) {
+	handlerB := func(ctx context.Context, msgs []testData) {
 		mu.Lock()
 		topicBMessages = append(topicBMessages, msgs...)
 		mu.Unlock()
 	}
 
-	broker := NewMessageBroker()
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("topic-a", handlerA)
 	broker.RegisterTopic("topic-b", handlerB)
 
@@ -179,8 +209,8 @@ func TestMessageBroker_MultipleTopics(t *testing.T) {
 	defer broker.Close()
 
 	// Enqueue to different topics
-	messageA := shared.Message{URI: "file:///testA.rb", Type: shared.DiagnoseFile}
-	messageB := shared.Message{URI: "file:///testB.rb", Type: shared.DiagnoseAll}
+	messageA := testData{ID: 1, Value: "testA"}
+	messageB := testData{ID: 2, Value: "testB"}
 
 	broker.Enqueue("topic-a", messageA)
 	broker.Enqueue("topic-b", messageB)
@@ -199,25 +229,30 @@ func TestMessageBroker_MultipleTopics(t *testing.T) {
 		t.Errorf("Expected 1 message for topic-b, got %d", len(topicBMessages))
 	}
 
-	if len(topicAMessages) > 0 && topicAMessages[0].URI != "file:///testA.rb" {
-		t.Errorf("Expected topic-a URI 'file:///testA.rb', got '%s'", topicAMessages[0].URI)
+	if len(topicAMessages) > 0 && topicAMessages[0].Value != "testA" {
+		t.Errorf("Expected topic-a Value 'testA', got '%s'", topicAMessages[0].Value)
 	}
-	if len(topicBMessages) > 0 && topicBMessages[0].URI != "file:///testB.rb" {
-		t.Errorf("Expected topic-b URI 'file:///testB.rb', got '%s'", topicBMessages[0].URI)
+	if len(topicBMessages) > 0 && topicBMessages[0].Value != "testB" {
+		t.Errorf("Expected topic-b Value 'testB', got '%s'", topicBMessages[0].Value)
 	}
 }
 
 func TestMessageBroker_WithBatchConfig(t *testing.T) {
-	var receivedBatches [][]shared.Message
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	var receivedBatches [][]testData
 	var mu sync.Mutex
 
-	handler := func(ctx context.Context, msgs []shared.Message) {
+	handler := func(ctx context.Context, msgs []testData) {
 		mu.Lock()
 		receivedBatches = append(receivedBatches, msgs)
 		mu.Unlock()
 	}
 
-	broker := NewMessageBroker()
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("batch-topic", handler,
 		WithQueueSize(50),
 		WithBatchConfig(3, 100*time.Millisecond),
@@ -231,9 +266,9 @@ func TestMessageBroker_WithBatchConfig(t *testing.T) {
 
 	// Enqueue 5 messages
 	for i := 0; i < 5; i++ {
-		message := shared.Message{
-			URI:  fmt.Sprintf("file:///test%d.rb", i),
-			Type: shared.DiagnoseFile,
+		message := testData{
+			ID:    i,
+			Value: fmt.Sprintf("test%d", i),
 		}
 		broker.Enqueue("batch-topic", message)
 	}
@@ -266,12 +301,17 @@ func TestMessageBroker_WithBatchConfig(t *testing.T) {
 }
 
 func TestMessageBroker_WithQueueSizeConfig(t *testing.T) {
-	handler := func(ctx context.Context, msgs []shared.Message) {
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	handler := func(ctx context.Context, msgs []testData) {
 		// Slow handler to test queue overflow
 		time.Sleep(200 * time.Millisecond)
 	}
 
-	broker := NewMessageBroker()
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("small-queue-topic", handler, WithQueueSize(2))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -280,7 +320,7 @@ func TestMessageBroker_WithQueueSizeConfig(t *testing.T) {
 	broker.Start(ctx)
 	defer broker.Close()
 
-	message := shared.Message{URI: "file:///test.rb", Type: shared.DiagnoseFile}
+	message := testData{ID: 1, Value: "test"}
 
 	// Should succeed for first 2 messages
 	broker.Enqueue("small-queue-topic", message)
@@ -300,16 +340,21 @@ func TestMessageBroker_WithQueueSizeConfig(t *testing.T) {
 }
 
 func TestMessageBroker_ConcurrentEnqueue(t *testing.T) {
-	var receivedMessages []shared.Message
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	var receivedMessages []testData
 	var mu sync.Mutex
 
-	handler := func(ctx context.Context, msgs []shared.Message) {
+	handler := func(ctx context.Context, msgs []testData) {
 		mu.Lock()
 		receivedMessages = append(receivedMessages, msgs...)
 		mu.Unlock()
 	}
 
-	broker := NewMessageBroker()
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("concurrent-topic", handler, WithQueueSize(100))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -328,9 +373,9 @@ func TestMessageBroker_ConcurrentEnqueue(t *testing.T) {
 		go func(goroutineID int) {
 			defer wg.Done()
 			for j := 0; j < messagesPerGoroutine; j++ {
-				message := shared.Message{
-					URI:  fmt.Sprintf("file:///test_%d_%d.rb", goroutineID, j),
-					Type: shared.DiagnoseFile,
+				message := testData{
+					ID:    j,
+					Value: fmt.Sprintf("test_%d_%d", goroutineID, j),
 				}
 				broker.Enqueue("concurrent-topic", message)
 			}
@@ -353,9 +398,14 @@ func TestMessageBroker_ConcurrentEnqueue(t *testing.T) {
 }
 
 func TestMessageBroker_Close_Idempotent(t *testing.T) {
-	handler := func(ctx context.Context, msgs []shared.Message) {}
+	type testData struct {
+		ID    int
+		Value string
+	}
 
-	broker := NewMessageBroker()
+	handler := func(ctx context.Context, msgs []testData) {}
+
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("test-topic", handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -370,21 +420,26 @@ func TestMessageBroker_Close_Idempotent(t *testing.T) {
 }
 
 func TestMessageBroker_HandlerPanic(t *testing.T) {
-	var processedMessages []shared.Message
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	var processedMessages []testData
 	var mu sync.Mutex
 
-	handler := func(ctx context.Context, msgs []shared.Message) {
+	handler := func(ctx context.Context, msgs []testData) {
 		mu.Lock()
 		defer mu.Unlock()
 		for _, msg := range msgs {
-			if msg.URI == "file:///panic.rb" {
+			if msg.Value == "panic" {
 				panic("test panic")
 			}
 			processedMessages = append(processedMessages, msg)
 		}
 	}
 
-	broker := NewMessageBroker()
+	broker := NewMessageBroker[testData]()
 	broker.RegisterTopic("panic-topic", handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -394,9 +449,9 @@ func TestMessageBroker_HandlerPanic(t *testing.T) {
 	defer broker.Close()
 
 	// Enqueue normal message, panic message, and another normal message
-	normalMsg1 := shared.Message{URI: "file:///normal1.rb", Type: shared.DiagnoseFile}
-	panicMsg := shared.Message{URI: "file:///panic.rb", Type: shared.DiagnoseFile}
-	normalMsg2 := shared.Message{URI: "file:///normal2.rb", Type: shared.DiagnoseFile}
+	normalMsg1 := testData{ID: 1, Value: "normal1"}
+	panicMsg := testData{ID: 2, Value: "panic"}
+	normalMsg2 := testData{ID: 3, Value: "normal2"}
 
 	broker.Enqueue("panic-topic", normalMsg1)
 	broker.Enqueue("panic-topic", panicMsg)
@@ -414,10 +469,10 @@ func TestMessageBroker_HandlerPanic(t *testing.T) {
 	if len(processedMessages) != 2 {
 		t.Errorf("Expected 2 processed messages, got %d", len(processedMessages))
 	}
-	if len(processedMessages) >= 1 && processedMessages[0].URI != "file:///normal1.rb" {
-		t.Errorf("Expected first message 'file:///normal1.rb', got '%s'", processedMessages[0].URI)
+	if len(processedMessages) >= 1 && processedMessages[0].Value != "normal1" {
+		t.Errorf("Expected first message 'normal1', got '%s'", processedMessages[0].Value)
 	}
-	if len(processedMessages) >= 2 && processedMessages[1].URI != "file:///normal2.rb" {
-		t.Errorf("Expected second message 'file:///normal2.rb', got '%s'", processedMessages[1].URI)
+	if len(processedMessages) >= 2 && processedMessages[1].Value != "normal2" {
+		t.Errorf("Expected second message 'normal2', got '%s'", processedMessages[1].Value)
 	}
 }

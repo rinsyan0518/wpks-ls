@@ -6,9 +6,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/rinsyan0518/wpks-ls/internal/pkg/shared"
-	"github.com/tliron/glsp"
 )
 
 func TestTopicWorker_BasicOperation(t *testing.T) {
@@ -73,11 +70,16 @@ func TestTopicWorker_BasicOperation(t *testing.T) {
 }
 
 func TestTopicWorker_WithMessage(t *testing.T) {
-	var receivedMessages []shared.Message
+	type testData struct {
+		ID    int
+		Value string
+	}
+
+	var receivedMessages []testData
 	var mu sync.Mutex
 	processed := make(chan bool, 1)
 
-	handler := func(ctx context.Context, msgs []shared.Message) {
+	handler := func(ctx context.Context, msgs []testData) {
 		mu.Lock()
 		receivedMessages = append(receivedMessages, msgs...)
 		if len(receivedMessages) == 1 {
@@ -98,11 +100,9 @@ func TestTopicWorker_WithMessage(t *testing.T) {
 	go worker.Run(ctx)
 
 	// Create test message
-	mockGLSPCtx := &glsp.Context{}
-	message := shared.Message{
-		GLSPContext: mockGLSPCtx,
-		URI:         "file:///test.rb",
-		Type:        shared.DiagnoseFile,
+	message := testData{
+		ID:    1,
+		Value: "test",
 	}
 
 	// Enqueue message
@@ -123,8 +123,8 @@ func TestTopicWorker_WithMessage(t *testing.T) {
 	if len(receivedMessages) != 1 {
 		t.Errorf("Expected 1 message, got %d", len(receivedMessages))
 	}
-	if len(receivedMessages) > 0 && receivedMessages[0].URI != "file:///test.rb" {
-		t.Errorf("Expected URI 'file:///test.rb', got '%s'", receivedMessages[0].URI)
+	if len(receivedMessages) > 0 && receivedMessages[0].Value != "test" {
+		t.Errorf("Expected Value 'test', got '%s'", receivedMessages[0].Value)
 	}
 	mu.Unlock()
 

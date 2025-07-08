@@ -1,10 +1,16 @@
-package shared
+package task
 
 import (
 	"sync"
 	"testing"
 	"time"
 )
+
+// Simple test struct for testing generic functionality
+type testMessage struct {
+	Topic string
+	Value string
+}
 
 func TestRingBuffer_BasicOperations(t *testing.T) {
 	rb := NewRingBuffer[int](3)
@@ -162,18 +168,18 @@ func TestRingBuffer_CloseOperation(t *testing.T) {
 	}
 }
 
-func TestRingBuffer_WithTopicMessage(t *testing.T) {
-	// Test with actual topicMessage type
-	rb := NewRingBuffer[topicMessage](5)
+func TestRingBuffer_WithStructType(t *testing.T) {
+	// Test with struct type to verify generic functionality
+	rb := NewRingBuffer[testMessage](5)
 
-	msg1 := topicMessage{
-		topic:   "test-topic",
-		message: Message{URI: "file:///test.rb", Type: DiagnoseFile},
+	msg1 := testMessage{
+		Topic: "test-topic",
+		Value: "test-value-1",
 	}
 
-	msg2 := topicMessage{
-		topic:   "another-topic",
-		message: Message{URI: "file:///another.rb", Type: DiagnoseAll},
+	msg2 := testMessage{
+		Topic: "another-topic",
+		Value: "test-value-2",
 	}
 
 	// Put messages
@@ -186,12 +192,41 @@ func TestRingBuffer_WithTopicMessage(t *testing.T) {
 
 	// Get messages
 	receivedMsg1, ok := rb.Get()
-	if !ok || receivedMsg1.topic != "test-topic" {
-		t.Errorf("Expected 'test-topic', got '%s'", receivedMsg1.topic)
+	if !ok || receivedMsg1.Topic != "test-topic" {
+		t.Errorf("Expected 'test-topic', got '%s'", receivedMsg1.Topic)
 	}
 
 	receivedMsg2, ok := rb.Get()
-	if !ok || receivedMsg2.topic != "another-topic" {
-		t.Errorf("Expected 'another-topic', got '%s'", receivedMsg2.topic)
+	if !ok || receivedMsg2.Topic != "another-topic" {
+		t.Errorf("Expected 'another-topic', got '%s'", receivedMsg2.Topic)
+	}
+}
+
+func TestRingBuffer_SizeAndCapacity(t *testing.T) {
+	rb := NewRingBuffer[int](5)
+
+	// Test capacity
+	if rb.Capacity() != 5 {
+		t.Errorf("Expected capacity 5, got %d", rb.Capacity())
+	}
+
+	// Test size progression
+	if rb.Size() != 0 {
+		t.Errorf("Expected size 0, got %d", rb.Size())
+	}
+
+	rb.Put(1)
+	if rb.Size() != 1 {
+		t.Errorf("Expected size 1, got %d", rb.Size())
+	}
+
+	rb.Put(2)
+	if rb.Size() != 2 {
+		t.Errorf("Expected size 2, got %d", rb.Size())
+	}
+
+	rb.Get()
+	if rb.Size() != 1 {
+		t.Errorf("Expected size 1 after get, got %d", rb.Size())
 	}
 }
