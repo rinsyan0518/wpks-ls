@@ -43,11 +43,7 @@ func (f *fakePackwerkRunner) RunCheckAll(ctx context.Context, rootPath string) (
 }
 
 func TestDiagnoseFile_Diagnose(t *testing.T) {
-	fullMessage := strings.Join([]string{
-		"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
-		"Are we missing an abstraction?",
-		"Is the code making the reference, and the referenced constant, in the right packages?",
-	}, " ")
+	fullMessage := "Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'. Are we missing an abstraction? Is the code making the reference, and the referenced constant, in the right packages?"
 
 	tests := []struct {
 		name         string
@@ -108,7 +104,7 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fixturePath := filepath.Join("..", "..", "..", "test", tt.fixtureFile)
+			fixturePath := filepath.Join("./testdata", tt.fixtureFile)
 			data, err := os.ReadFile(fixturePath)
 			if err != nil {
 				t.Fatalf("failed to read fixture: %v", err)
@@ -147,11 +143,7 @@ func TestDiagnoseFile_Diagnose(t *testing.T) {
 }
 
 func TestDiagnoseFile_DiagnoseAll(t *testing.T) {
-	fullMessage := strings.Join([]string{
-		"Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'.",
-		"Are we missing an abstraction?",
-		"Is the code making the reference, and the referenced constant, in the right packages?",
-	}, " ")
+	fullMessage := "Dependency violation: ::Book belongs to 'packs/books', but 'packs/users' does not specify a dependency on 'packs/books'. Are we missing an abstraction? Is the code making the reference, and the referenced constant, in the right packages?"
 
 	tests := []struct {
 		name                  string
@@ -196,7 +188,7 @@ func TestDiagnoseFile_DiagnoseAll(t *testing.T) {
 				t.Fatalf("failed to save configuration: %v", err)
 			}
 
-			fixturePath := filepath.Join("..", "..", "..", "test", tt.fixtureFile)
+			fixturePath := filepath.Join("./testdata", tt.fixtureFile)
 			data, err := os.ReadFile(fixturePath)
 			if err != nil {
 				t.Fatalf("failed to read fixture: %v", err)

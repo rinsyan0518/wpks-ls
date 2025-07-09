@@ -22,7 +22,7 @@ func TestPackwerkOutput_Parse(t *testing.T) {
 	}{
 		{
 			name:        "single violation",
-			fixtureFile: "check_result_fixture.txt",
+			fixtureFile: "packwerk_output_single.txt",
 			expectedViolations: []expectedViolation{
 				{
 					File:      "packs/users/app/controllers/users_controller.rb",
@@ -62,7 +62,7 @@ func TestPackwerkOutput_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fixturePath := filepath.Join("..", "..", "..", "..", "test", tt.fixtureFile)
+			fixturePath := filepath.Join("./testdata", tt.fixtureFile)
 			data, err := os.ReadFile(fixturePath)
 			if err != nil {
 				t.Fatalf("failed to read fixture: %v", err)
