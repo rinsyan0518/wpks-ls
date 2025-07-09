@@ -122,7 +122,7 @@ func (w *TopicWorker[T]) ProcessBatch(ctx context.Context) {
 
 	// Safely drain buffer with size limit to prevent infinite loops
 	bufferSize := w.batchBuffer.Size()
-	for i := 0; i < bufferSize; i++ {
+	for range bufferSize {
 		if item, ok := w.batchBuffer.TryGet(); ok {
 			items = append(items, item)
 		} else {
