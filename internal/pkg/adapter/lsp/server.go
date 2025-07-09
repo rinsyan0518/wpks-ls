@@ -125,17 +125,10 @@ func (s *Server) Start() error {
 	return ls.RunStdio()
 }
 
-func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
-	checkAllOnInitialized := false
-	if params.InitializationOptions != nil {
-		if options, ok := params.InitializationOptions.(map[string]any); ok {
-			if checkAll, ok := options["checkAllOnInitialized"].(bool); ok {
-				checkAllOnInitialized = checkAll
-			}
-		}
-	}
+func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializeParams) (any, error) {
+	options := ParseInitializationOptions(params.InitializationOptions)
 
-	err := s.configure.Configure(*params.RootURI, *params.RootPath, checkAllOnInitialized)
+	err := s.configure.Configure(*params.RootURI, *params.RootPath, options.CheckAllOnInitialized)
 	if err != nil {
 		return nil, err
 	}
