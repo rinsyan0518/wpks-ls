@@ -104,12 +104,12 @@ func TestParseInitializationOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "input is map[string]interface{} (equivalent to map[string]any)",
-			initializationOptions: map[string]interface{}{
+			name: "input is map[string]any (equivalent to map[string]any)",
+			initializationOptions: map[string]any{
 				"checkAllOnInitialized": true,
 			},
 			expected: ServerOptions{
-				CheckAllOnInitialized: true, // map[string]interface{} is equivalent to map[string]any
+				CheckAllOnInitialized: true, // map[string]any is equivalent to map[string]any
 			},
 		},
 	}

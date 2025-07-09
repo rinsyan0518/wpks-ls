@@ -10,7 +10,7 @@ import (
 
 // Notifier represents an interface that can send notifications
 type Notifier interface {
-	Notify(method string, params interface{})
+	Notify(method string, params any)
 }
 
 // ContextNotifier wraps glsp.Context to implement the Notifier interface
@@ -24,7 +24,7 @@ func NewContextNotifier(ctx *glsp.Context) *ContextNotifier {
 }
 
 // Notify implements the Notifier interface
-func (c *ContextNotifier) Notify(method string, params interface{}) {
+func (c *ContextNotifier) Notify(method string, params any) {
 	c.ctx.Notify(method, params)
 }
 

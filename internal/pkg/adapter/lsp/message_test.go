@@ -461,19 +461,19 @@ func TestNotifyErrorLogMessageWithFormat(t *testing.T) {
 	tests := []struct {
 		name   string
 		format string
-		args   []interface{}
+		args   []any
 		want   string
 	}{
 		{
 			name:   "error message with format",
 			format: "Error: %s failed with code %d",
-			args:   []interface{}{"operation", 500},
+			args:   []any{"operation", 500},
 			want:   "Error: operation failed with code 500",
 		},
 		{
 			name:   "multiple format specifiers",
 			format: "Error in file %s at line %d: %s",
-			args:   []interface{}{"test.go", 42, "syntax error"},
+			args:   []any{"test.go", 42, "syntax error"},
 			want:   "Error in file test.go at line 42: syntax error",
 		},
 	}
@@ -509,7 +509,7 @@ func TestNotifyWarningLogMessage(t *testing.T) {
 	tests := []struct {
 		name   string
 		format string
-		args   []interface{}
+		args   []any
 		want   string
 	}{
 		{
@@ -521,7 +521,7 @@ func TestNotifyWarningLogMessage(t *testing.T) {
 		{
 			name:   "warning message with format",
 			format: "Warning: %s failed with code %d",
-			args:   []interface{}{"operation", 404},
+			args:   []any{"operation", 404},
 			want:   "Warning: operation failed with code 404",
 		},
 		{
@@ -533,7 +533,7 @@ func TestNotifyWarningLogMessage(t *testing.T) {
 		{
 			name:   "format without args",
 			format: "Simple warning",
-			args:   []interface{}{},
+			args:   []any{},
 			want:   "Simple warning",
 		},
 	}
@@ -577,7 +577,7 @@ func TestNotifyInfoLogMessage(t *testing.T) {
 	tests := []struct {
 		name   string
 		format string
-		args   []interface{}
+		args   []any
 		want   string
 	}{
 		{
@@ -589,7 +589,7 @@ func TestNotifyInfoLogMessage(t *testing.T) {
 		{
 			name:   "info message with format",
 			format: "Info: processed %d files in %s",
-			args:   []interface{}{42, "10ms"},
+			args:   []any{42, "10ms"},
 			want:   "Info: processed 42 files in 10ms",
 		},
 		{
@@ -639,7 +639,7 @@ func TestNotifyLogMessage(t *testing.T) {
 	tests := []struct {
 		name   string
 		format string
-		args   []interface{}
+		args   []any
 		want   string
 	}{
 		{
@@ -651,7 +651,7 @@ func TestNotifyLogMessage(t *testing.T) {
 		{
 			name:   "log message with format",
 			format: "Log: user %s performed action %s at %s",
-			args:   []interface{}{"john", "login", "2023-01-01"},
+			args:   []any{"john", "login", "2023-01-01"},
 			want:   "Log: user john performed action login at 2023-01-01",
 		},
 		{

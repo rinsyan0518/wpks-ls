@@ -116,9 +116,9 @@ func (s *Server) Start() error {
 		Initialize:           s.onInitialize,
 		Initialized:          s.onInitialized,
 		Shutdown:             s.onShutdown,
-		TextDocumentDidOpen:  s.onDidOpen,
-		TextDocumentDidSave:  s.onDidSave,
-		TextDocumentDidClose: s.onDidClose,
+		TextDocumentDidOpen:  s.onTextDocumentDidOpen,
+		TextDocumentDidSave:  s.onTextDocumentDidSave,
+		TextDocumentDidClose: s.onTextDocumentDidClose,
 	}
 	ls := server.NewServer(&handler, serverName, false)
 
@@ -160,7 +160,7 @@ func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedPa
 	return nil
 }
 
-func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
+func (s *Server) onTextDocumentDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 	uri := string(params.TextDocument.URI)
 
 	s.messageQueue.Enqueue(diagnoseTopic, Message{
@@ -171,7 +171,7 @@ func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocume
 	return nil
 }
 
-func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
+func (s *Server) onTextDocumentDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
 	uri := string(params.TextDocument.URI)
 
 	s.messageQueue.Enqueue(diagnoseTopic, Message{
@@ -182,6 +182,6 @@ func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocume
 	return nil
 }
 
-func (s *Server) onDidClose(ctx *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
+func (s *Server) onTextDocumentDidClose(ctx *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 	return nil
 }
