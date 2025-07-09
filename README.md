@@ -91,19 +91,15 @@ vim.lsp.enable('wpks-ls')
 
 When running diagnostics, `wpks-ls` tries the following commands in order until one succeeds:
 
-1. **pks**
-   ```
-   pks -e check -- <file>
-   ```
-2. **bin/packwerk**
+1. **bin/packwerk**
    ```
    bin/packwerk check -- <file>
    ```
-3. **bundle exec packwerk**
+2. **bundle exec packwerk**
    ```
    bundle exec packwerk check -- <file>
    ```
-4. **packwerk**
+3. **packwerk**
    ```
    packwerk check -- <file>
    ```
@@ -114,7 +110,6 @@ If a command is not found, it falls back to the next. If none succeed, no diagno
 
 Depending on your environment, `wpks-ls` will execute one of the following commands to check for Packwerk violations:
 
-- `pks -e check -- <file>`
 - `bin/packwerk check -- <file>`
 - `bundle exec packwerk check -- <file>`
 - `packwerk check -- <file>`
