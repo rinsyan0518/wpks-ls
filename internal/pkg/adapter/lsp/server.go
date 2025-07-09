@@ -16,6 +16,7 @@ import (
 const (
 	serverName    = "wpks-ls"
 	serverVersion = "0.0.1"
+	diagnoseTopic = "diagnose"
 )
 
 // DiagnoseType represents the type of diagnosis to perform
@@ -50,21 +51,7 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 		messageQueue: messageQueue,
 	}
 
-	// Register handlers for different topics
-	server.registerHandlers()
-
 	return server
-}
-
-// registerHandlers registers handlers for different message topics
-func (s *Server) registerHandlers() {
-	// Unified handler for all diagnosis operations
-	s.messageQueue.RegisterTopic(
-		"diagnose",
-		s.handleDiagnose,
-		task.WithQueueSize(100),
-		task.WithBatchConfig(10, 100*time.Millisecond),
-	)
 }
 
 // handleDiagnose processes diagnosis operations for multiple messages with batch processing
@@ -79,10 +66,13 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []Message) {
 	NotifyServerWindowWorkDoneProgressCreate(notifier, token)
 
 	hasAll := false
+	uriSet := make(map[string]struct{})
 	for _, msg := range msgs {
-		if msg.Type == DiagnoseAll {
+		switch msg.Type {
+		case DiagnoseFile:
+			uriSet[msg.URI] = struct{}{}
+		case DiagnoseAll:
 			hasAll = true
-			break
 		}
 	}
 
@@ -98,14 +88,6 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []Message) {
 		NotifyBeginProgress(notifier, token, "Diagnosing files...", false)
 		NotifyReportProgress(notifier, token, "Diagnosing...", 25)
 
-		// Collect unique URIs to avoid duplicate processing
-		uriSet := make(map[string]struct{})
-		for _, msg := range msgs {
-			if msg.Type == DiagnoseFile {
-				uriSet[msg.URI] = struct{}{}
-			}
-		}
-
 		uris := make([]string, 0, len(uriSet))
 		for uri := range uriSet {
 			uris = append(uris, uri)
@@ -119,11 +101,8 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []Message) {
 	} else {
 		NotifyReportProgress(notifier, token, "Diagnosing...", 75)
 
-		for _, msg := range msgs {
-			msgNotifier := NewContextNotifier(msg.GLSPContext)
-			for uri, diagnostics := range allResults {
-				NotifyPublishDiagnostics(msgNotifier, uri, diagnostics)
-			}
+		for uri, diagnostics := range allResults {
+			NotifyPublishDiagnostics(notifier, uri, diagnostics)
 		}
 	}
 
@@ -142,7 +121,7 @@ func (s *Server) Start() error {
 		TextDocumentDidClose: s.onDidClose,
 	}
 	ls := server.NewServer(&handler, serverName, false)
-	s.messageQueue.Start(context.Background())
+
 	return ls.RunStdio()
 }
 
@@ -161,6 +140,15 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 		return nil, err
 	}
 
+	s.messageQueue.RegisterTopic(
+		diagnoseTopic,
+		s.handleDiagnose,
+		task.WithQueueSize(100),
+		task.WithBatchConfig(10, 100*time.Millisecond),
+	)
+
+	s.messageQueue.Start(context.Background())
+
 	return NewInitializeResult(serverName, serverVersion), nil
 }
 
@@ -170,38 +158,34 @@ func (s *Server) onShutdown(ctx *glsp.Context) error {
 }
 
 func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
-	// Run diagnostics for all files with progress notification
-	message := Message{
+	s.messageQueue.Enqueue(diagnoseTopic, Message{
 		GLSPContext: ctx,
 		URI:         "", // Not applicable for "diagnose all"
 		Type:        DiagnoseAll,
-	}
-	s.messageQueue.Enqueue("diagnose", message)
+	})
 
 	return nil
 }
 
 func (s *Server) onDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 	uri := string(params.TextDocument.URI)
-	// Run diagnostics for the opened file with progress notification
-	message := Message{
+
+	s.messageQueue.Enqueue(diagnoseTopic, Message{
 		GLSPContext: ctx,
 		URI:         uri,
 		Type:        DiagnoseFile,
-	}
-	s.messageQueue.Enqueue("diagnose", message)
+	})
 	return nil
 }
 
 func (s *Server) onDidSave(ctx *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
 	uri := string(params.TextDocument.URI)
-	// Run diagnostics for the saved file with progress notification
-	message := Message{
+
+	s.messageQueue.Enqueue(diagnoseTopic, Message{
 		GLSPContext: ctx,
 		URI:         uri,
 		Type:        DiagnoseFile,
-	}
-	s.messageQueue.Enqueue("diagnose", message)
+	})
 	return nil
 }
 
