@@ -40,6 +40,7 @@ type Server struct {
 	diagnoseFile in.DiagnoseFile
 	configure    in.Configure
 	messageQueue task.Broker[Message]
+	options      *ServerOptions
 }
 
 func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
@@ -49,6 +50,7 @@ func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
 		diagnoseFile: diagnoseFile,
 		configure:    configure,
 		messageQueue: messageQueue,
+		options:      NewServerOptions(),
 	}
 
 	return server
@@ -126,9 +128,13 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializeParams) (any, error) {
-	options := ParseInitializationOptions(params.InitializationOptions)
+	options := NewServerOptions()
+	options.Apply(params.InitializationOptions)
 
-	err := s.configure.Configure(*params.RootURI, *params.RootPath, options.CheckAllOnInitialized)
+	// Store the parsed options in the server
+	s.options = options
+
+	err := s.configure.Configure(*params.RootURI, *params.RootPath)
 	if err != nil {
 		return nil, err
 	}
@@ -151,11 +157,13 @@ func (s *Server) onShutdown(ctx *glsp.Context) error {
 }
 
 func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
-	s.messageQueue.Enqueue(diagnoseTopic, Message{
-		GLSPContext: ctx,
-		URI:         "", // Not applicable for "diagnose all"
-		Type:        DiagnoseAll,
-	})
+	if s.options.CheckAllOnInitialized {
+		s.messageQueue.Enqueue(diagnoseTopic, Message{
+			GLSPContext: ctx,
+			URI:         "", // Not applicable for "diagnose all"
+			Type:        DiagnoseAll,
+		})
+	}
 
 	return nil
 }

@@ -14,8 +14,8 @@ func NewConfigure(configurationRepository out.ConfigurationRepository) *Configur
 	return &Configure{configurationRepository: configurationRepository}
 }
 
-func (c *Configure) Configure(rootUri string, rootPath string, checkAllOnInitialized bool) error {
-	configuration := domain.NewConfiguration(rootUri, rootPath, checkAllOnInitialized)
+func (c *Configure) Configure(rootUri string, rootPath string) error {
+	configuration := domain.NewConfiguration(rootUri, rootPath)
 	return c.configurationRepository.Save(configuration)
 }
 

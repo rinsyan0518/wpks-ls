@@ -31,7 +31,7 @@ func TestConfigure_Configure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := inmemory.NewConfigurationRepository()
 			uc := NewConfigure(repo)
-			err := uc.Configure(tt.rootUri, tt.rootPath, tt.checkAllOnInitialized)
+			err := uc.Configure(tt.rootUri, tt.rootPath)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -39,7 +39,7 @@ func TestConfigure_Configure(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if conf.RootUri != tt.rootUri || conf.RootPath != tt.rootPath || conf.CheckAllOnInitialized != tt.checkAllOnInitialized {
+			if conf.RootUri != tt.rootUri || conf.RootPath != tt.rootPath {
 				t.Errorf("unexpected configuration: want %+v, got %+v", tt, conf)
 			}
 		})

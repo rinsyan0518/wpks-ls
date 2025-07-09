@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestParseInitializationOptions(t *testing.T) {
+func TestServerOptions_Apply(t *testing.T) {
 	tests := []struct {
 		name                  string
 		initializationOptions any
@@ -116,18 +116,31 @@ func TestParseInitializationOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ParseInitializationOptions(tt.initializationOptions)
+			options := NewServerOptions()
+			options.Apply(tt.initializationOptions)
 
-			if result.CheckAllOnInitialized != tt.expected.CheckAllOnInitialized {
-				t.Errorf("ParseInitializationOptions() CheckAllOnInitialized = %v, expected %v",
-					result.CheckAllOnInitialized, tt.expected.CheckAllOnInitialized)
+			if options.CheckAllOnInitialized != tt.expected.CheckAllOnInitialized {
+				t.Errorf("Apply() CheckAllOnInitialized = %v, expected %v",
+					options.CheckAllOnInitialized, tt.expected.CheckAllOnInitialized)
 			}
 		})
 	}
 }
 
+func TestNewServerOptions(t *testing.T) {
+	options := NewServerOptions()
+
+	if options == nil {
+		t.Fatal("NewServerOptions() returned nil")
+	}
+
+	if options.CheckAllOnInitialized != false {
+		t.Errorf("NewServerOptions() CheckAllOnInitialized = %v, expected false", options.CheckAllOnInitialized)
+	}
+}
+
 // Benchmark test to ensure performance is reasonable
-func BenchmarkParseInitializationOptions(b *testing.B) {
+func BenchmarkServerOptions_Apply(b *testing.B) {
 	input := map[string]any{
 		"checkAllOnInitialized": true,
 		"otherField":            "value",
@@ -136,13 +149,15 @@ func BenchmarkParseInitializationOptions(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseInitializationOptions(input)
+		options := NewServerOptions()
+		options.Apply(input)
 	}
 }
 
-func BenchmarkParseInitializationOptionsNil(b *testing.B) {
+func BenchmarkServerOptions_ApplyNil(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseInitializationOptions(nil)
+		options := NewServerOptions()
+		options.Apply(nil)
 	}
 }

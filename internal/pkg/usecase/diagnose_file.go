@@ -68,10 +68,6 @@ func (d *DiagnoseFile) DiagnoseAll(context context.Context) (map[string][]domain
 		return nil, err
 	}
 
-	if !configuration.CheckAllOnInitialized {
-		return map[string][]domain.Diagnostic{}, nil
-	}
-
 	violations, err := d.packwerkRunner.RunCheckAll(
 		context,
 		configuration.RootPath,

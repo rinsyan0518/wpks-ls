@@ -3,13 +3,12 @@ package domain
 import "strings"
 
 type Configuration struct {
-	RootUri               string
-	RootPath              string
-	CheckAllOnInitialized bool
+	RootUri  string
+	RootPath string
 }
 
-func NewConfiguration(rootUri string, rootPath string, checkAllOnInitialized bool) *Configuration {
-	return &Configuration{RootUri: rootUri, RootPath: rootPath, CheckAllOnInitialized: checkAllOnInitialized}
+func NewConfiguration(rootUri string, rootPath string) *Configuration {
+	return &Configuration{RootUri: rootUri, RootPath: rootPath}
 }
 
 func (c *Configuration) StripRootUri(uri string) string {

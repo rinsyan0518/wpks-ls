@@ -16,7 +16,7 @@ func TestConfigurationRepository(t *testing.T) {
 		{
 			name: "SaveAndGet",
 			setup: func(r *ConfigurationRepository) {
-				conf := domain.NewConfiguration("file:///root", "/root", false)
+				conf := domain.NewConfiguration("file:///root", "/root")
 				err := r.Save(conf)
 				if err != nil {
 					t.Fatalf("failed to save configuration: %v", err)

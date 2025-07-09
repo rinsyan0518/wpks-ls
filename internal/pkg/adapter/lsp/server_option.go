@@ -5,21 +5,18 @@ type ServerOptions struct {
 	CheckAllOnInitialized bool
 }
 
-// ParseInitializationOptions safely parses any type to ServerOptions
-func ParseInitializationOptions(initializationOptions any) ServerOptions {
-	result := ServerOptions{
-		CheckAllOnInitialized: false,
-	}
+func NewServerOptions() *ServerOptions {
+	return &ServerOptions{CheckAllOnInitialized: false}
+}
 
+func (o *ServerOptions) Apply(initializationOptions any) {
 	if initializationOptions == nil {
-		return result
+		return
 	}
 
 	if optionsMap, ok := initializationOptions.(map[string]any); ok {
 		if checkAll, ok := optionsMap["checkAllOnInitialized"].(bool); ok {
-			result.CheckAllOnInitialized = checkAll
+			o.CheckAllOnInitialized = checkAll
 		}
 	}
-
-	return result
 }
