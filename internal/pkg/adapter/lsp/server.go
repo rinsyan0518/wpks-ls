@@ -29,9 +29,9 @@ const (
 
 // Message represents a message containing glsp.Context and URI
 type Message struct {
-	GLSPContext *glsp.Context
-	URI         string
-	Type        DiagnoseType
+	notifier Notifier
+	URI      string
+	Type     DiagnoseType
 	// Additional fields can be added here as needed
 }
 
@@ -61,8 +61,7 @@ func (s *Server) handleDiagnose(ctx context.Context, msgs []Message) {
 	if len(msgs) == 0 {
 		return
 	}
-	lastMsg := msgs[len(msgs)-1]
-	notifier := NewContextNotifier(lastMsg.GLSPContext)
+	notifier := msgs[len(msgs)-1].notifier
 
 	token := uuid.New().String()
 	NotifyServerWindowWorkDoneProgressCreate(notifier, token)
@@ -159,9 +158,9 @@ func (s *Server) onShutdown(ctx *glsp.Context) error {
 func (s *Server) onInitialized(ctx *glsp.Context, params *protocol.InitializedParams) error {
 	if s.options.CheckAllOnInitialized {
 		s.messageQueue.Enqueue(diagnoseTopic, Message{
-			GLSPContext: ctx,
-			URI:         "", // Not applicable for "diagnose all"
-			Type:        DiagnoseAll,
+			notifier: NewContextNotifier(ctx),
+			URI:      "", // Not applicable for "diagnose all"
+			Type:     DiagnoseAll,
 		})
 	}
 
@@ -172,9 +171,9 @@ func (s *Server) onTextDocumentDidOpen(ctx *glsp.Context, params *protocol.DidOp
 	uri := string(params.TextDocument.URI)
 
 	s.messageQueue.Enqueue(diagnoseTopic, Message{
-		GLSPContext: ctx,
-		URI:         uri,
-		Type:        DiagnoseFile,
+		notifier: NewContextNotifier(ctx),
+		URI:      uri,
+		Type:     DiagnoseFile,
 	})
 	return nil
 }
@@ -183,9 +182,9 @@ func (s *Server) onTextDocumentDidSave(ctx *glsp.Context, params *protocol.DidSa
 	uri := string(params.TextDocument.URI)
 
 	s.messageQueue.Enqueue(diagnoseTopic, Message{
-		GLSPContext: ctx,
-		URI:         uri,
-		Type:        DiagnoseFile,
+		notifier: NewContextNotifier(ctx),
+		URI:      uri,
+		Type:     DiagnoseFile,
 	})
 	return nil
 }
