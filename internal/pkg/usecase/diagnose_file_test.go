@@ -60,12 +60,12 @@ func (f *fakePackwerkRunner) RunCheckAll(ctx context.Context, rootPath string) (
 // Test helper functions
 
 // setupTestRepository creates and configures a test repository
-func setupTestRepository(t *testing.T) *inmemory.ConfigurationRepository {
+func setupTestRepository(t *testing.T) *inmemory.WorkspaceRepository {
 	t.Helper()
-	repo := inmemory.NewConfigurationRepository()
-	err := repo.Save(domain.NewConfiguration(testRootURI, testRootPath))
+	repo := inmemory.NewWorkspaceRepository()
+	err := repo.Save(domain.NewWorkspace(testRootURI, testRootPath))
 	if err != nil {
-		t.Fatalf("failed to save configuration: %v", err)
+		t.Fatalf("failed to save workspace: %v", err)
 	}
 	return repo
 }
@@ -81,7 +81,7 @@ func loadTestFixture(t *testing.T, filename string) string {
 	return string(data)
 }
 
-// createDiagnoser creates a DiagnoseFile instance with test configuration
+// createDiagnoser creates a DiagnoseFile instance with test workspace
 func createDiagnoser(t *testing.T, fixtureFile string) *DiagnoseFile {
 	t.Helper()
 	repo := setupTestRepository(t)

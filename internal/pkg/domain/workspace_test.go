@@ -2,7 +2,7 @@ package domain
 
 import "testing"
 
-func TestNewConfiguration(t *testing.T) {
+func TestNewWorkspace(t *testing.T) {
 	tests := []struct {
 		name     string
 		rootUri  string
@@ -13,16 +13,16 @@ func TestNewConfiguration(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConfiguration(tt.rootUri, tt.rootPath)
+			c := NewWorkspace(tt.rootUri, tt.rootPath)
 			if c.RootUri != tt.rootUri || c.RootPath != tt.rootPath {
-				t.Errorf("unexpected configuration: want %+v, got %+v", tt, c)
+				t.Errorf("unexpected workspace: want %+v, got %+v", tt, c)
 			}
 		})
 	}
 }
 
-func TestConfiguration_StripRootUri(t *testing.T) {
-	c := NewConfiguration("file:///root", "/root")
+func TestWorkspace_StripRootUri(t *testing.T) {
+	w := NewWorkspace("file:///root", "/root")
 	tests := []struct {
 		name string
 		uri  string
@@ -33,7 +33,7 @@ func TestConfiguration_StripRootUri(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := c.StripRootUri(tt.uri)
+			got := w.StripRootUri(tt.uri)
 			if got != tt.want {
 				t.Errorf("want %q, got %q", tt.want, got)
 			}
@@ -41,8 +41,8 @@ func TestConfiguration_StripRootUri(t *testing.T) {
 	}
 }
 
-func TestConfiguration_BuildFileUri(t *testing.T) {
-	c := NewConfiguration("file:///root", "/root")
+func TestWorkspace_BuildFileUri(t *testing.T) {
+	w := NewWorkspace("file:///root", "/root")
 	tests := []struct {
 		name     string
 		filePath string
@@ -53,7 +53,7 @@ func TestConfiguration_BuildFileUri(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := c.BuildFileUri(tt.filePath)
+			got := w.BuildFileUri(tt.filePath)
 			if got != tt.want {
 				t.Errorf("want %q, got %q", tt.want, got)
 			}

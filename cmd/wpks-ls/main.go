@@ -10,10 +10,10 @@ import (
 )
 
 func main() {
-	configurationRepository := inmemory.NewConfigurationRepository()
-	diagnoseFile := usecase.NewDiagnoseFile(configurationRepository, packwerk.NewRunnerWithDefaultCheckers())
-	configure := usecase.NewConfigure(configurationRepository)
-	server := lsp.NewServer(diagnoseFile, configure)
+	workspaceRepository := inmemory.NewWorkspaceRepository()
+	diagnoseFile := usecase.NewDiagnoseFile(workspaceRepository, packwerk.NewRunnerWithDefaultCheckers())
+	createWorkspace := usecase.NewCreateWorkspace(workspaceRepository)
+	server := lsp.NewServer(diagnoseFile, createWorkspace)
 	err := server.Start()
 	if err != nil {
 		log.Fatalf("failed to start LSP server: %v", err)

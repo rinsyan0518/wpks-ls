@@ -37,20 +37,20 @@ type Message struct {
 
 // Server represents a minimal LSP server.
 type Server struct {
-	diagnoseFile in.DiagnoseFile
-	configure    in.Configure
-	messageQueue task.Broker[Message]
-	options      *ServerOptions
+	diagnoseFile    in.DiagnoseFile
+	createWorkspace in.CreateWorkspace
+	messageQueue    task.Broker[Message]
+	options         *ServerOptions
 }
 
-func NewServer(diagnoseFile in.DiagnoseFile, configure in.Configure) *Server {
+func NewServer(diagnoseFile in.DiagnoseFile, createWorkspace in.CreateWorkspace) *Server {
 	messageQueue := task.NewMessageBroker[Message]()
 
 	server := &Server{
-		diagnoseFile: diagnoseFile,
-		configure:    configure,
-		messageQueue: messageQueue,
-		options:      NewServerOptions(),
+		diagnoseFile:    diagnoseFile,
+		createWorkspace: createWorkspace,
+		messageQueue:    messageQueue,
+		options:         NewServerOptions(),
 	}
 
 	return server
@@ -134,7 +134,7 @@ func (s *Server) onInitialize(ctx *glsp.Context, params *protocol.InitializePara
 	// Store the parsed options in the server
 	s.options = options
 
-	err := s.configure.Configure(*params.RootURI, *params.RootPath)
+	err := s.createWorkspace.Create(*params.RootURI, *params.RootPath)
 	if err != nil {
 		return nil, err
 	}

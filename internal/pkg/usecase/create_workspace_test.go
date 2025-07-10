@@ -6,7 +6,7 @@ import (
 	"github.com/rinsyan0518/wpks-ls/internal/pkg/adapter/inmemory"
 )
 
-func TestConfigure_Configure(t *testing.T) {
+func TestCreateWorkspace_Create(t *testing.T) {
 	tests := []struct {
 		name                  string
 		rootUri               string
@@ -29,18 +29,18 @@ func TestConfigure_Configure(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := inmemory.NewConfigurationRepository()
-			uc := NewConfigure(repo)
-			err := uc.Configure(tt.rootUri, tt.rootPath)
+			repo := inmemory.NewWorkspaceRepository()
+			uc := NewCreateWorkspace(repo)
+			err := uc.Create(tt.rootUri, tt.rootPath)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			conf, err := repo.GetConfiguration()
+			conf, err := repo.GetWorkspace()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if conf.RootUri != tt.rootUri || conf.RootPath != tt.rootPath {
-				t.Errorf("unexpected configuration: want %+v, got %+v", tt, conf)
+				t.Errorf("unexpected workspace: want %+v, got %+v", tt, conf)
 			}
 		})
 	}

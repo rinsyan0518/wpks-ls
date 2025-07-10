@@ -13,12 +13,12 @@ const (
 )
 
 type DiagnoseFile struct {
-	configurationRepository out.ConfigurationRepository
-	packwerkRunner          out.PackwerkRunner
+	workspaceRepository out.WorkspaceRepository
+	packwerkRunner      out.PackwerkRunner
 }
 
-func NewDiagnoseFile(configurationRepository out.ConfigurationRepository, packwerkRunner out.PackwerkRunner) *DiagnoseFile {
-	return &DiagnoseFile{configurationRepository: configurationRepository, packwerkRunner: packwerkRunner}
+func NewDiagnoseFile(workspaceRepository out.WorkspaceRepository, packwerkRunner out.PackwerkRunner) *DiagnoseFile {
+	return &DiagnoseFile{workspaceRepository: workspaceRepository, packwerkRunner: packwerkRunner}
 }
 
 func (d *DiagnoseFile) Diagnose(context context.Context, uris ...string) (map[string][]domain.Diagnostic, error) {
@@ -26,7 +26,7 @@ func (d *DiagnoseFile) Diagnose(context context.Context, uris ...string) (map[st
 		return map[string][]domain.Diagnostic{}, nil
 	}
 
-	configuration, err := d.configurationRepository.GetConfiguration()
+	workspace, err := d.workspaceRepository.GetWorkspace()
 	if err != nil {
 		return nil, err
 	}
@@ -34,11 +34,11 @@ func (d *DiagnoseFile) Diagnose(context context.Context, uris ...string) (map[st
 	// Convert URIs to paths
 	paths := make([]string, len(uris))
 	for i, uri := range uris {
-		paths[i] = configuration.StripRootUri(uri)
+		paths[i] = workspace.StripRootUri(uri)
 	}
 
 	// Run check for all paths at once
-	violations, err := d.packwerkRunner.RunCheck(context, configuration.RootPath, paths...)
+	violations, err := d.packwerkRunner.RunCheck(context, workspace.RootPath, paths...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (d *DiagnoseFile) Diagnose(context context.Context, uris ...string) (map[st
 	// Group violations by file URI
 	allDiagnostics := make(map[string][]domain.Diagnostic)
 	for _, v := range violations {
-		fileUri := configuration.BuildFileUri(v.File)
+		fileUri := workspace.BuildFileUri(v.File)
 		diagnostic := domain.Diagnostic{
 			Range: domain.Range{
 				Start: domain.Position{Line: v.Line - 1, Character: v.Character},
@@ -63,14 +63,14 @@ func (d *DiagnoseFile) Diagnose(context context.Context, uris ...string) (map[st
 }
 
 func (d *DiagnoseFile) DiagnoseAll(context context.Context) (map[string][]domain.Diagnostic, error) {
-	configuration, err := d.configurationRepository.GetConfiguration()
+	workspace, err := d.workspaceRepository.GetWorkspace()
 	if err != nil {
 		return nil, err
 	}
 
 	violations, err := d.packwerkRunner.RunCheckAll(
 		context,
-		configuration.RootPath,
+		workspace.RootPath,
 	)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (d *DiagnoseFile) DiagnoseAll(context context.Context) (map[string][]domain
 	diagnosticsByFile := make(map[string][]domain.Diagnostic)
 
 	for _, v := range violations {
-		fileUri := configuration.BuildFileUri(v.File)
+		fileUri := workspace.BuildFileUri(v.File)
 		diagnostic := domain.Diagnostic{
 			Range: domain.Range{
 				Start: domain.Position{Line: v.Line - 1, Character: v.Character},
